@@ -18,6 +18,10 @@ plans or Claude changes: the watch is just a second screen that reads the same p
 1. **Routine list**, with "Next up" first.
 2. **Workout screen**: swipe between exercises; for each set a row with the target and last time, a weight/reps
    stepper (the crown or tap), and one tap to log. Left/right exercises have an L and an R row.
+   **No typing of numbers, as in Hevy:** weight and reps are wheels. Turn the watch's crown to step the value up or
+   down, or drag the number up or down with a finger. The step for weight is the exercise's own `increment_kg`
+   (2.5 kg if none is set), for reps it is 1. Both start prefilled from the plan, so a normal set is one glance and
+   one tap on the check.
 3. **Rest timer** after each set, with a vibration at zero (a watch is better at this than a phone).
 4. **Finish**, which uploads and lets the database ask Claude for the next plan, exactly as on the phone.
 5. **Offline first**: sets are saved on the watch immediately and uploaded when there is a connection.
