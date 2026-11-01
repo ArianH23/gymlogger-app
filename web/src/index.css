@@ -270,3 +270,8 @@ button.outline { width: 100%; padding: 16px; margin-bottom: 14px; border: 2px so
 .targets { display: flex; flex-wrap: wrap; gap: 2px 14px; }
 .targets span { white-space: nowrap; }
 .badges .badge { margin-top: 0; }
+
+/* Body tab */
+.checkin-due { display: flex; flex-direction: column; gap: 4px; width: 100%; border: 2px solid var(--surface-2); color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.table.weeks .table-row { grid-template-columns: 1fr 0.9fr 0.9fr 0.9fr 0.8fr; font-size: 15px; }
+.nav button { font-size: 15px; }

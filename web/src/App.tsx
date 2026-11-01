@@ -6,17 +6,19 @@ import Routines from './screens/Routines'
 import ActiveWorkout from './screens/ActiveWorkout'
 import History from './screens/History'
 import Exercises from './screens/Exercises'
+import Body from './screens/Body'
 import { PageFor } from './screens/Pages'
 import { NavProvider, useNav } from './lib/nav'
 import { db } from './lib/db'
 import { syncPending } from './lib/sync'
 
-type Tab = 'routines' | 'exercises' | 'history'
+type Tab = 'routines' | 'exercises' | 'history' | 'body'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'routines', label: 'Routines' },
   { id: 'exercises', label: 'Exercises' },
   { id: 'history', label: 'History' },
+  { id: 'body', label: 'Body' },
 ]
 
 function Shell() {
@@ -67,7 +69,7 @@ function Shell() {
   return (
     <div className="app">
       <main className="screen">
-        {tab === 'routines' ? <Routines onOpen={setOpenWorkout} /> : tab === 'exercises' ? <Exercises /> : <History />}
+        {tab === 'routines' ? <Routines onOpen={setOpenWorkout} /> : tab === 'exercises' ? <Exercises /> : tab === 'body' ? <Body /> : <History />}
       </main>
 
       <nav className="nav">

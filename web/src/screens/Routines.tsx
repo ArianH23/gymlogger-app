@@ -6,6 +6,7 @@ import { prefetchPlans, startRoutineWorkout } from '../lib/workoutPlan'
 import { syncPending } from '../lib/sync'
 import { useNav } from '../lib/nav'
 import { daysAgo } from '../lib/format'
+import { latestCheckinDay } from '../lib/checkins'
 
 type RoutineCard = {
   id: string
@@ -47,6 +48,15 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
   const waiting = useLiveQuery(() => db.workouts.filter((w) => !!w.endedAt && !w.syncedAt).count(), [])
   const [retrying, setRetrying] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  // null = unknown (no signal): the reminder only shows when we know a check-in is due
+  const [checkinDue, setCheckinDue] = useState<{ last: string | null } | null>(null)
+
+  useEffect(() => {
+    latestCheckinDay().then((day) => {
+      const days = day ? Math.round((Date.now() - new Date(`${day}T12:00:00`).getTime()) / 86400000) : Infinity
+      setCheckinDue(days >= 7 ? { last: day } : null)
+    })
+  }, [])
 
   async function retry() {
     setRetrying(true)
@@ -126,6 +136,14 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
             {retrying ? 'Uploading…' : 'Retry now'}
           </button>
         </div>
+      )}
+      {checkinDue && (
+        <button className="card checkin-due" onClick={() => push({ type: 'checkinForm' })}>
+          <strong>Weekly check-in due</strong>
+          <span className="muted">
+            {checkinDue.last ? `Last one ${daysAgo(`${checkinDue.last}T12:00:00`)}.` : 'No check-in yet.'} Bodyweight, waist, sleep: it helps your plans.
+          </span>
+        </button>
       )}
       <button className="outline" onClick={() => (emptyOpen ? onOpen(emptyOpen.id) : startEmpty())}>
         {emptyOpen ? `Resume ${emptyOpen.title.toLowerCase()}` : '+ Start empty workout'}

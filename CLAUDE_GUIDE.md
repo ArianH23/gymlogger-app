@@ -127,6 +127,46 @@ where cp.routine_id = (select id from routines where name = 'Workout B' and dele
 order by ps.exercise_position, ps.set_no;
 ```
 
+## Step 2b: how the body and recovery are doing
+
+The owner logs weekly check-ins (bodyweight, waist, sleep, body fat, notes). One query gives the last 8 weeks, with
+training next to them:
+
+```sql
+select week_start, sessions, sets, volume_kg, planned_sets, done_sets, met_sets,
+       check_ins, bodyweight_kg, waist_cm, sleep_hours, body_fat_pct
+from weekly_overview
+order by week_start desc
+limit 8;
+```
+
+And the latest raw check-ins, with the owner's own notes:
+
+```sql
+select checked_on, bodyweight_kg, waist_cm, sleep_hours, body_fat_pct, notes
+from body_checkins
+where deleted_at is null
+order by checked_on desc
+limit 6;
+```
+
+How to read it (all of this nudges the plan; none of it replaces what the sets show):
+
+- **Trends, never single days.** Bodyweight moves 0.5 to 1 kg from day to day. Compare weekly averages across
+  3 or more weeks. Waist is a better fat-loss signal than the scale. Body fat is a rough estimate: direction only.
+- **Plan performance** is `met_sets` out of `done_sets`: sets that reached the planned reps at the planned weight.
+  It only exists for workouts logged in the app, so older weeks are empty: ignore a null, never guess.
+  Two weeks in a row clearly below about 60% suggests the plan was too heavy or recovery is poor: hold the weights
+  instead of increasing. Several weeks above about 90% suggests the plan is too easy: progress. Say so with the
+  numbers in the plan note.
+- **Sleep** averaging under about 6 hours for 2 or more weeks, or a note about illness, injury or a bad week:
+  be conservative (hold weights, do not read a rep drop as a reason to deload by itself).
+- **Weight falling fast** (more than about 1% of bodyweight per week) together with strength dropping: say so in
+  the summary as something for the owner to look at. Weight stable or slowly falling with strength rising is on track.
+- **No check-in for 3 weeks or more:** plan from the training data alone and mention in the summary that
+  check-ins are missing.
+- This is not medical advice. If a note mentions pain or illness, be conservative and say so.
+
 ## Step 3: decide the targets
 
 Default method is **double progression**, per exercise, based on the last session of that exercise:
@@ -193,7 +233,7 @@ at the gym (for example a null increment). No long explanations.
 ## Schema in one minute
 
 `exercises` (catalog and progression settings), `routines` + `routine_exercises` (templates), `sessions` +
-`sets` + `session_exercise_notes` (what happened), `planned_sessions` + `planned_sets` (plans, written by
-the rules or by you). All timestamps are UTC. Every table and column has a comment:
+`sets` + `session_exercise_notes` (what happened), `body_checkins` + the `weekly_overview` view (body and recovery),
+`planned_sessions` + `planned_sets` (plans, written by the rules or by you). All timestamps are UTC. Every table and column has a comment:
 `select * from information_schema.columns` plus `col_description(...)` if you need details, or
 `select obj_description('public.sets'::regclass);`.

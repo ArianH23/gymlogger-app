@@ -124,18 +124,18 @@ export default function ExerciseForm({ id }: { id?: string }) {
           <div className="two-cols">
             <label>
               Reps from
-              <input inputMode="numeric" value={form.repMin} onChange={(e) => set('repMin', e.target.value)} />
+              <input inputMode="numeric" onFocus={(e) => e.target.select()} value={form.repMin} onChange={(e) => set('repMin', e.target.value)} />
             </label>
             <label>
               Reps to
-              <input inputMode="numeric" value={form.repMax} onChange={(e) => set('repMax', e.target.value)} />
+              <input inputMode="numeric" onFocus={(e) => e.target.select()} value={form.repMax} onChange={(e) => set('repMax', e.target.value)} />
             </label>
           </div>
           <p className="hint">Your target range. Hit the top on every set and the next plan adds weight.</p>
 
           <label>
             Weight step (kg)
-            <input inputMode="decimal" value={form.increment} onChange={(e) => set('increment', e.target.value)} placeholder="unknown" />
+            <input inputMode="decimal" onFocus={(e) => e.target.select()} value={form.increment} onChange={(e) => set('increment', e.target.value)} placeholder="unknown" />
           </label>
           <p className="hint">
             The smallest jump on this machine or dumbbell rack. Leave empty if you don’t know: plans then keep the weight and say it’s time to
