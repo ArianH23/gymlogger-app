@@ -3,6 +3,8 @@ import TimeChart, { type Series } from '../components/TimeChart'
 import { useNav } from '../lib/nav'
 import { dayToTime, loadBody, type Checkin, type WeekRow } from '../lib/checkins'
 import { formatDate, formatDayMonth, num } from '../lib/format'
+import { createWatchPairing, type Pairing } from '../lib/pairing'
+import PairWatchSheet from '../components/PairWatchSheet'
 
 const series = (checkins: Checkin[]): Series[] => {
   const asc = [...checkins].reverse()
@@ -48,6 +50,20 @@ export default function Body() {
   }, [])
 
   const all = useMemo(() => series(checkins ?? []), [checkins])
+
+  const [pairing, setPairing] = useState<Pairing | null>(null)
+  const [pairBusy, setPairBusy] = useState(false)
+  const [pairError, setPairError] = useState<string | null>(null)
+  async function makeCode() {
+    setPairBusy(true)
+    setPairError(null)
+    try {
+      setPairing(await createWatchPairing())
+    } catch (e) {
+      setPairError(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e))
+    }
+    setPairBusy(false)
+  }
 
   return (
     <>
@@ -103,6 +119,18 @@ export default function Body() {
             </button>
           ))}
         </>
+      )}
+
+      <h2>Watch</h2>
+      <div className="card">
+        <p className="muted">Sign the watch in without typing a password: make a code here and pick it on the watch.</p>
+        {pairError && !pairing && <p className="error">{pairError}</p>}
+        <button className="outline" disabled={pairBusy} onClick={makeCode}>
+          {pairBusy ? 'Making a code…' : 'Pair watch'}
+        </button>
+      </div>
+      {pairing && (
+        <PairWatchSheet pairing={pairing} busy={pairBusy} error={pairError} onNewCode={makeCode} onClose={() => setPairing(null)} />
       )}
     </>
   )
