@@ -1,9 +1,7 @@
 package com.gymlogger.watch
 
 import android.app.Application
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +48,7 @@ sealed interface Screen {
     data object Feeling : Screen // "how did it feel?", on finishing
     data class Exercise(val exerciseId: String) : Screen
     data class Editor(val exerciseId: String, val row: Row) : Screen
+    data class Rest(val from: Screen) : Screen // the rest timer's own screen; back returns to where you were
 }
 
 /** What the screens show. The data lives in [Api], the database and the on-watch [WorkoutStore]; this holds what is on screen. */
@@ -89,6 +88,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var restEndsAt by mutableStateOf<Long?>(null)
         private set
     private var restJob: Job? = null
+
+    private val prefs = app.getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    /** Whether the watch vibrates when the rest ends. Kept on this device (the phone has its own switch). */
+    var alarmOn by mutableStateOf(prefs.getBoolean("restAlarm", true))
+        private set
+
+    fun toggleAlarm() {
+        alarmOn = !alarmOn
+        prefs.edit().putBoolean("restAlarm", alarmOn).apply()
+    }
 
     // All changes to the open workout go through [change], one at a time, so a reply from the server can never
     // overwrite something just tapped (and the file on the watch is always the latest state).
@@ -368,30 +378,44 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Screen.Feeling -> Screen.Overview
             is Screen.Exercise -> Screen.Overview
             is Screen.Editor -> Screen.Exercise(s.exerciseId)
+            is Screen.Rest -> s.from
         }
         return true
     }
 
     // ---- rest timer
 
-    private fun startRest(seconds: Int) {
+    private fun startRest(seconds: Int) = runRest(System.currentTimeMillis() + seconds * 1000L)
+
+    private fun runRest(endsAt: Long) {
         restJob?.cancel()
-        restEndsAt = System.currentTimeMillis() + seconds * 1000L
+        restEndsAt = endsAt
+        RestAlarm.schedule(getApplication(), endsAt) // vibrates on time even if the screen sleeps and the app is paused
         restJob = viewModelScope.launch {
-            delay(seconds * 1000L)
-            vibrate()
-            delay(10_000) // "rest over" stays for a few seconds, then disappears
+            delay((endsAt - System.currentTimeMillis()).coerceAtLeast(0))
+            delay(10_000) // "rest over" stays for a few seconds, then disappears (the vibration comes from RestAlarm, not from here)
             restEndsAt = null
         }
     }
 
-    fun cancelRest() {
-        restJob?.cancel()
-        restEndsAt = null
+    /** Adds or takes off seconds on the running rest (the phone's -15 and +15). */
+    fun adjustRest(deltaSeconds: Int) {
+        val ends = restEndsAt ?: return
+        val now = System.currentTimeMillis()
+        if (ends <= now && deltaSeconds < 0) return // already over: nothing to shorten
+        runRest(maxOf(ends + deltaSeconds * 1000L, now))
     }
 
-    private fun vibrate() {
-        val vibrator: Vibrator = getApplication<Application>().getSystemService(VibratorManager::class.java).defaultVibrator
-        vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 150, 400), -1))
+    fun skipRest() = cancelRest()
+
+    /** Opens the rest timer's screen (only while resting). */
+    fun openRest() {
+        if (restEndsAt != null && screen !is Screen.Rest) screen = Screen.Rest(screen)
+    }
+
+    fun cancelRest() {
+        restJob?.cancel()
+        RestAlarm.cancel(getApplication())
+        restEndsAt = null
     }
 }

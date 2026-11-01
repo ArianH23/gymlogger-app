@@ -1,5 +1,6 @@
 package com.gymlogger.watch.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,10 +56,10 @@ private fun mmss(ms: Long): String {
 
 private fun Row.label() = if (side == null) "Set $setNo" else "Set $setNo · $side"
 
-/** "Rest 1:12", counting down; "Rest over" when it reaches zero (the watch vibrates then). Nothing when not resting. */
+/** Milliseconds left of the rest, updating four times a second; null when not resting. */
 @Composable
-fun RestChip(endsAt: Long?) {
-    if (endsAt == null) return
+private fun restLeft(endsAt: Long?): Long? {
+    if (endsAt == null) return null
     var now by remember(endsAt) { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(endsAt) {
         while (true) {
@@ -66,21 +67,48 @@ fun RestChip(endsAt: Long?) {
             delay(250)
         }
     }
-    val left = (endsAt - now).coerceAtLeast(0)
+    return (endsAt - now).coerceAtLeast(0)
+}
+
+/** "Rest 1:12", counting down; "Rest over" when it reaches zero (the watch vibrates then). Tap it for the rest timer's controls. */
+@Composable
+fun RestChip(endsAt: Long?, onClick: () -> Unit) {
+    val left = restLeft(endsAt) ?: return
     Text(
         if (left == 0L) "Rest over" else "Rest ${mmss(left)}",
         color = MaterialTheme.colorScheme.primary,
         style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 4.dp),
     )
+}
+
+/** The rest timer: the countdown, -15 / +15, Skip, and whether the watch vibrates at the end. */
+@Composable
+fun RestScreen(endsAt: Long?, alarmOn: Boolean, onAdjust: (Int) -> Unit, onToggleAlarm: () -> Unit, onSkip: () -> Unit) {
+    val left = restLeft(endsAt)
+    Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Rest", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            if (left == null || left == 0L) "Over" else mmss(left),
+            style = MaterialTheme.typography.numeralLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        LayoutRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilledTonalButton(onClick = { onAdjust(-15) }, modifier = Modifier.width(58.dp).height(40.dp)) { Text("-15") }
+            Button(onClick = onSkip, modifier = Modifier.width(62.dp).height(40.dp)) { Text("Skip") }
+            FilledTonalButton(onClick = { onAdjust(15) }, modifier = Modifier.width(58.dp).height(40.dp)) { Text("+15") }
+        }
+        OutlinedButton(onClick = onToggleAlarm, modifier = Modifier.width(128.dp).height(40.dp)) { Text(if (alarmOn) "Alarm: on" else "Alarm: off") }
+    }
 }
 
 /** The exercises of the open workout, with how many sets of each are done. */
 @Composable
-fun OverviewScreen(workout: Workout, restEndsAt: Long?, online: Boolean, onOpen: (PlanExercise) -> Unit, onFinish: () -> Unit, onDiscard: () -> Unit) {
+fun OverviewScreen(workout: Workout, restEndsAt: Long?, onRest: () -> Unit, online: Boolean, onOpen: (PlanExercise) -> Unit, onFinish: () -> Unit, onDiscard: () -> Unit) {
     var confirmDiscard by remember { mutableStateOf(false) }
     ScalingLazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         item { ListHeader { Text(workout.title) } }
-        item { RestChip(restEndsAt) }
+        item { RestChip(restEndsAt, onRest) }
         if (!online) item { Text("Offline: saved on the watch", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         val current = workout.plan.firstOrNull { workout.progress(it).let { (d, t) -> d < t } }
         items(workout.plan) { ex ->
@@ -102,11 +130,11 @@ fun OverviewScreen(workout: Workout, restEndsAt: Long?, online: Boolean, onOpen:
 
 /** The sets of one exercise: tap one to log or change it. */
 @Composable
-fun ExerciseScreen(workout: Workout, ex: PlanExercise, restEndsAt: Long?, onOpenRow: (Row) -> Unit, onAddSet: () -> Unit) {
+fun ExerciseScreen(workout: Workout, ex: PlanExercise, restEndsAt: Long?, onRest: () -> Unit, onOpenRow: (Row) -> Unit, onAddSet: () -> Unit) {
     val next = workout.nextOpenRow(ex)
     ScalingLazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         item { ListHeader { Text(ex.name, maxLines = 2, overflow = TextOverflow.Ellipsis) } }
-        item { RestChip(restEndsAt) }
+        item { RestChip(restEndsAt, onRest) }
         items(workout.rows(ex)) { row ->
             val logged = workout.loggedAt(ex, row)
             val plan = ex.planSet(row.setNo)?.targetText()
@@ -134,6 +162,7 @@ fun EditorScreen(
     ex: PlanExercise,
     row: Row,
     restEndsAt: Long?,
+    onRest: () -> Unit,
     onLog: (weight: Double?, reps: Int) -> Unit,
     onDelete: () -> Unit,
     onRemove: () -> Unit,
@@ -161,7 +190,7 @@ fun EditorScreen(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 32.dp),
         )
-        if (restEndsAt != null) RestChip(restEndsAt)
+        if (restEndsAt != null) RestChip(restEndsAt, onRest)
         else if (plan != null) Text("plan $plan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         PickerGroup(selectedPickerState = if (repsFocused) repsWheel else weightWheel, autoCenter = false, modifier = Modifier.weight(1f).padding(vertical = 2.dp)) {
@@ -171,7 +200,7 @@ fun EditorScreen(
                     selected = !repsFocused,
                     onSelected = { repsFocused = false },
                     contentDescription = { "Weight in kilograms" },
-                    option = { index, selected -> WheelNumber(num(weights[index]), selected, width = 76) },
+                    option = { index, selected -> WheelNumber(num(weights[index]), selected, width = 96, unit = if (ex.loadType == "assisted") "assist" else "kg") },
                 )
             }
             PickerGroupItem(
@@ -179,7 +208,7 @@ fun EditorScreen(
                 selected = repsFocused,
                 onSelected = { repsFocused = true },
                 contentDescription = { "Reps" },
-                option = { index, selected -> WheelNumber(index.toString(), selected, width = 52) },
+                option = { index, selected -> WheelNumber(index.toString(), selected, width = 70, unit = "reps") },
             )
         }
 
@@ -198,14 +227,15 @@ fun EditorScreen(
 
 private const val MAX_REPS = 60
 
+/** One value of a wheel with its unit beside it ("40 kg", "6 reps"), so it is always clear which wheel is which. */
 @Composable
-private fun androidx.wear.compose.material3.PickerScope.WheelNumber(text: String, selected: Boolean, width: Int) {
+private fun androidx.wear.compose.material3.PickerScope.WheelNumber(text: String, selected: Boolean, width: Int, unit: String) {
+    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Box(Modifier.height(36.dp).width(width.dp), contentAlignment = Alignment.Center) {
-        Text(
-            text,
-            style = MaterialTheme.typography.numeralSmall,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        LayoutRow(verticalAlignment = Alignment.Bottom) {
+            Text(text, style = MaterialTheme.typography.numeralSmall, color = color)
+            Text(" $unit", style = MaterialTheme.typography.labelSmall, color = color, modifier = Modifier.padding(bottom = 5.dp))
+        }
     }
 }
 

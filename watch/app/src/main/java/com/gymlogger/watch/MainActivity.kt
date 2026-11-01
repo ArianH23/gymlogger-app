@@ -1,7 +1,6 @@
 package com.gymlogger.watch
 
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -23,6 +22,7 @@ import com.gymlogger.watch.ui.ExerciseScreen
 import com.gymlogger.watch.ui.FeelingScreen
 import com.gymlogger.watch.ui.OverviewScreen
 import com.gymlogger.watch.ui.PairScreen
+import com.gymlogger.watch.ui.RestScreen
 import com.gymlogger.watch.ui.RoutinesScreen
 
 // The phone app's green on near-black, so the watch looks like the same app.
@@ -49,12 +49,9 @@ class MainActivity : ComponentActivity() {
                     PairScreen(busy = vm.pairBusy, error = vm.pairError, onPair = vm::pair)
                 } else {
                     LaunchedEffect(Unit) { vm.loadRoutines() }
-                    // The screen stays on while a workout is open, so the numbers are there when you look at your wrist.
-                    LaunchedEffect(vm.workout != null) {
-                        if (vm.workout != null) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                    }
                     BackHandler(enabled = vm.screen != Screen.Routines) { vm.back() }
+                    // When the rest has ended and cleared, leave its screen.
+                    LaunchedEffect(vm.restEndsAt) { if (vm.restEndsAt == null && vm.screen is Screen.Rest) vm.back() }
                     SignedInContent()
                 }
             }
@@ -78,18 +75,27 @@ class MainActivity : ComponentActivity() {
             Screen.Overview -> if (w != null) OverviewScreen(
                 workout = w,
                 restEndsAt = vm.restEndsAt,
+                onRest = vm::openRest,
                 online = vm.online,
                 onOpen = { ex -> vm.screen = Screen.Exercise(ex.exerciseId) },
                 onFinish = { vm.screen = Screen.Feeling },
                 onDiscard = vm::discard,
             )
             Screen.Feeling -> FeelingScreen(onDone = vm::finish)
+            is Screen.Rest -> RestScreen(
+                endsAt = vm.restEndsAt,
+                alarmOn = vm.alarmOn,
+                onAdjust = vm::adjustRest,
+                onToggleAlarm = vm::toggleAlarm,
+                onSkip = { vm.skipRest(); vm.back() },
+            )
             is Screen.Exercise -> {
                 val ex = vm.exercise(s.exerciseId)
                 if (w != null && ex != null) ExerciseScreen(
                     workout = w,
                     ex = ex,
                     restEndsAt = vm.restEndsAt,
+                    onRest = vm::openRest,
                     onOpenRow = { row -> vm.screen = Screen.Editor(ex.exerciseId, row) },
                     onAddSet = { vm.addSet(ex) },
                 )
@@ -102,6 +108,7 @@ class MainActivity : ComponentActivity() {
                         ex = ex,
                         row = s.row,
                         restEndsAt = vm.restEndsAt,
+                        onRest = vm::openRest,
                         onLog = { weight, reps -> logAndAdvance(ex, s.row, weight, reps) },
                         onDelete = { vm.deleteLogged(ex, s.row); vm.screen = Screen.Exercise(ex.exerciseId) },
                         onRemove = { vm.removeRow(ex, s.row); vm.screen = Screen.Exercise(ex.exerciseId) },
