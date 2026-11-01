@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type LoggedSet, type PlanExercise, type PlanSet, type Workout } from '../lib/db'
+import RestTimer, { restSeconds, type Rest } from '../components/RestTimer'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -84,6 +85,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const workout = useLiveQuery(() => db.workouts.get(workoutId), [workoutId])
   const logged = useLiveQuery(() => db.sets.where('sessionId').equals(workoutId).toArray(), [workoutId])
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
+  const [rest, setRest] = useState<Rest | null>(null)
 
   if (!workout || !logged) return null
   const loggedByKey = new Map(logged.map((s) => [rowKey(s.exerciseId, s.setNo, s.side), s]))
@@ -98,6 +100,13 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     const reps = parseInt(draft.reps, 10)
     if (Number.isNaN(reps)) return // nothing to log without reps
     const weight = parseFloat(draft.weight.replace(',', '.'))
+    const otherSide: Side = side === 'L' ? 'R' : side === 'R' ? 'L' : null
+    const setComplete = side === null || loggedByKey.has(rowKey(ex.exerciseId, setNo, otherSide))
+    if (setComplete) {
+      // Rest starts once the whole set is done (for left/right: after both sides).
+      const planSet = ex.sets.find((s) => s.setNo === setNo) ?? ex.sets[ex.sets.length - 1]
+      setRest({ endsAt: Date.now() + restSeconds(planSet?.repsMax) * 1000 })
+    }
     await db.sets.add({
       id: crypto.randomUUID(),
       sessionId: workoutId,
@@ -196,6 +205,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
           Discard workout
         </button>
       </main>
+      {rest && <RestTimer rest={rest} onChange={setRest} />}
     </div>
   )
 }
