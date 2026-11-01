@@ -284,3 +284,21 @@ button.outline { width: 100%; padding: 16px; margin-bottom: 14px; border: 2px so
 .edit-row input { margin: 0; padding: 12px 8px; text-align: center; min-width: 0; }
 .edit-row .set-label { text-align: center; }
 .icon-btn { height: 46px; border: 0; border-radius: 10px; background: var(--surface-2); color: #ff7a7a; font-size: 18px; font-weight: 700; cursor: pointer; }
+
+/* Session score and feeling */
+.feeling-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
+.feeling { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 0; border: 1px solid var(--grid); border-radius: 12px; background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; }
+.feeling-num { font-size: 20px; font-weight: 800; }
+.feeling-label { font-size: 12px; color: var(--muted); }
+.feeling.on { border-color: var(--accent); background: var(--accent); color: #08140e; }
+.feeling.on .feeling-label { color: #08140e; }
+.score-small { display: inline-flex; align-items: center; gap: 8px; margin-top: 2px; }
+.face { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.face-large { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; flex: none; }
+.score-card { display: flex; align-items: center; gap: 14px; }
+.score-title { font-size: 20px; font-weight: 800; }
+.tier { font-weight: 700; }
+.tier-great, .tier-good { color: var(--accent); }
+.tier-average { color: var(--text); }
+.tier-weak { color: #e0a84a; }
+.tier-poor { color: #ff7a7a; }

@@ -35,6 +35,7 @@ export type Workout = {
   title: string
   startedAt: string
   endedAt: string | null
+  feeling?: number | null // optional 1-5 "how did it feel", tapped when finishing
   syncedAt?: string | null // set once the session, its sets and finish_session have all reached Supabase
   plan: PlanExercise[] // snapshot taken at start, so the screen works offline
   extraSets: Record<string, number> // exerciseId -> number of extra sets added with "+ Set"

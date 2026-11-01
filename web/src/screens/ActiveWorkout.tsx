@@ -6,7 +6,7 @@ import { syncPending } from '../lib/sync'
 import { useNav } from '../lib/nav'
 import { supabase } from '../lib/supabase'
 import ExercisePicker from '../components/ExercisePicker'
-import SaveRoutineSheet from '../components/SaveRoutineSheet'
+import FinishSheet from '../components/FinishSheet'
 import { createRoutine, suggestRoutineName } from '../lib/routines'
 import type { ExerciseRow } from '../lib/exerciseList'
 import { num, targetText } from '../lib/format'
@@ -79,7 +79,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [rest, setRest] = useState<Rest | null>(null)
   const [picking, setPicking] = useState(false)
-  const [askSave, setAskSave] = useState(false)
+  const [askFinish, setAskFinish] = useState(false)
 
   if (!workout || !logged) return null
   const loggedByKey = new Map(logged.map((s) => [rowKey(s.exerciseId, s.setNo, s.side), s]))
@@ -163,8 +163,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     onExit()
   }
 
-  async function completeFinish(routineId: string | null) {
-    await db.workouts.update(workoutId, { endedAt: new Date().toISOString(), routineId })
+  async function completeFinish(routineId: string | null, feeling: number | null) {
+    await db.workouts.update(workoutId, { endedAt: new Date().toISOString(), routineId, feeling })
     onExit()
     void syncPending() // uploads in the background; retried automatically if there is no signal
   }
@@ -174,9 +174,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
       if (window.confirm('No sets logged. Discard this workout?')) await discard(false)
       return
     }
-    // An empty (routine-less) workout can be kept as a routine.
-    if (workout!.routineId === null) setAskSave(true)
-    else await completeFinish(workout!.routineId)
+    setAskFinish(true) // one sheet: the optional feeling and, for an empty workout, saving it as a routine
   }
 
   /** Exercises that have logged sets, in workout order, with how many sets you did of each. */
@@ -189,10 +187,10 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
       .filter((it) => it.targetSets > 0)
   }
 
-  async function saveAsRoutine(name: string) {
+  async function saveAsRoutine(name: string, feeling: number | null) {
     const id = await createRoutine(name, routineItems())
-    setAskSave(false)
-    await completeFinish(id)
+    setAskFinish(false)
+    await completeFinish(id, feeling)
   }
 
   return (
@@ -283,16 +281,17 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
           Discard workout
         </button>
       </main>
-      {askSave && (
-        <SaveRoutineSheet
+      {askFinish && (
+        <FinishSheet
+          askRoutine={workout.routineId === null}
           defaultName={suggestRoutineName()}
           exerciseCount={routineItems().length}
-          onSave={saveAsRoutine}
-          onSkip={() => {
-            setAskSave(false)
-            void completeFinish(null)
+          onSaveRoutine={saveAsRoutine}
+          onFinish={(feeling) => {
+            setAskFinish(false)
+            void completeFinish(workout.routineId, feeling)
           }}
-          onCancel={() => setAskSave(false)}
+          onCancel={() => setAskFinish(false)}
         />
       )}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(false)} taken={new Set(workout.plan.map((e) => e.exerciseId))} />}

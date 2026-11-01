@@ -3,6 +3,8 @@ import { Page } from '../components/Page'
 import { supabase } from '../lib/supabase'
 import { useNav } from '../lib/nav'
 import { formatDate, num } from '../lib/format'
+import { loadScores, type Score } from '../lib/score'
+import ScoreBadge from '../components/ScoreBadge'
 
 type SetRow = {
   exercise_id: string
@@ -27,10 +29,10 @@ export type Block = {
   note?: string
 }
 
-export type Loaded = { session: Session; blocks: Block[]; sets: number; volume: number }
+export type Loaded = { session: Session; blocks: Block[]; sets: number; volume: number; score: Score | null }
 
 export async function loadSession(id: string): Promise<Loaded> {
-  const [s, sets, notes] = await Promise.all([
+  const [s, sets, notes, scores] = await Promise.all([
     supabase.from('sessions').select('id, title, started_at, ended_at, notes').eq('id', id).single(),
     supabase
       .from('sets')
@@ -38,6 +40,7 @@ export async function loadSession(id: string): Promise<Loaded> {
       .eq('session_id', id)
       .is('deleted_at', null),
     supabase.from('session_exercise_notes').select('exercise_id, note').eq('session_id', id).is('deleted_at', null),
+    loadScores([id]).catch(() => new Map<string, Score>()), // the score is a bonus: never block the page on it
   ])
   for (const r of [s, sets, notes]) if (r.error) throw r.error
 
@@ -73,7 +76,7 @@ export async function loadSession(id: string): Promise<Loaded> {
     }
   })
   blocks.sort((a, b) => a.first.localeCompare(b.first) || a.name.localeCompare(b.name))
-  return { session: s.data as Session, blocks, sets: setCount, volume }
+  return { session: s.data as Session, blocks, sets: setCount, volume, score: scores.get(id) ?? null }
 }
 
 export function duration(a: string, b: string | null) {
@@ -142,6 +145,7 @@ export default function SessionPage({ id }: { id: string }) {
               <div className="muted">volume</div>
             </div>
           </div>
+          <ScoreBadge score={data.score} size="large" />
           {s.notes && <div className="card">{s.notes}</div>}
 
           {data.blocks.map((b) => (

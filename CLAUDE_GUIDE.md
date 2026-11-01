@@ -132,9 +132,20 @@ training next to them:
 
 ```sql
 select week_start, sessions, sets, volume_kg, planned_sets, done_sets, met_sets,
-       check_ins, bodyweight_kg, waist_cm, sleep_hours, body_fat_pct
+       check_ins, bodyweight_kg, waist_cm, sleep_hours, body_fat_pct, avg_feeling
 from weekly_overview
 order by week_start desc
+limit 8;
+```
+
+And how each recent session went, one row each (`met_pct` is the share of planned sets met, `tier` is the label
+the app shows, `feeling` is the owner's own 1-5 tap at the end of the session):
+
+```sql
+select s.started_at::date as day, s.title, sc.planned_sets, sc.met_sets, sc.met_pct, sc.tier, sc.feeling
+from session_scores sc
+join sessions s on s.id = sc.session_id
+order by sc.started_at desc
 limit 8;
 ```
 
@@ -157,6 +168,12 @@ How to read it (all of this nudges the plan; none of it replaces what the sets s
   Two weeks in a row clearly below about 60% suggests the plan was too heavy or recovery is poor: hold the weights
   instead of increasing. Several weeks above about 90% suggests the plan is too easy: progress. Say so with the
   numbers in the plan note.
+- **Feeling** (`feeling`, 1 to 5, 3 is normal) is optional and often null: ignore a null, never guess. Read it next
+  to the score, as a cross-check: a high `met_pct` with feeling 1 or 2 means the session was hard for the owner
+  (recovery cost: hold the weights and look at sleep); a low `met_pct` with feeling 4 or 5 suggests the plan was
+  too heavy or the targets badly set, not a bad day. A single low feeling is not a trend; look for 2 or more
+  sessions in a row. Sessions with a null `tier` followed no plan (imported or free-form): leave them out of
+  any plan-performance judgement.
 - **Sleep** averaging under about 6 hours for 2 or more weeks, or a note about illness, injury or a bad week:
   be conservative (hold weights, do not read a rep drop as a reason to deload by itself).
 - **Weight falling fast** (more than about 1% of bodyweight per week) together with strength dropping: say so in

@@ -9,7 +9,15 @@ async function uploadWorkout(w: Workout) {
   const sets = await db.sets.where('sessionId').equals(w.id).toArray()
 
   const { error: sessionError } = await supabase.from('sessions').upsert(
-    { id: w.id, routine_id: w.routineId, title: w.title, started_at: w.startedAt, ended_at: w.endedAt, source: 'app' },
+    {
+      id: w.id,
+      routine_id: w.routineId,
+      title: w.title,
+      started_at: w.startedAt,
+      ended_at: w.endedAt,
+      ...(w.feeling ? { feeling: w.feeling } : {}), // only when tapped: an upload with no feeling never depends on the column
+      source: 'app',
+    },
     { onConflict: 'id' },
   )
   if (sessionError) throw sessionError

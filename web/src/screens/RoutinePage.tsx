@@ -7,6 +7,7 @@ import { useNav } from '../lib/nav'
 import { daysAgo, formatDate, num, targetText } from '../lib/format'
 import { getWorkoutPlan, startRoutineWorkout } from '../lib/workoutPlan'
 import { duration, loadSession, type Block, type Loaded } from './SessionPage'
+import ScoreBadge from '../components/ScoreBadge'
 
 type Stat = { sets: number; totalReps: number; bestWeightKg: number | null; volumeKg: number | null }
 
@@ -195,6 +196,7 @@ export default function RoutinePage({ id }: { id: string }) {
           {totals && (
             <>
               <h2>Last session</h2>
+              <ScoreBadge score={totals.score} size="large" />
               <div className="stat-row">
                 <div className="stat">
                   <div className="stat-value">{duration(totals.session.started_at, totals.session.ended_at) ?? '–'}</div>

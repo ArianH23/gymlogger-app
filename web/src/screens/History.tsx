@@ -4,8 +4,10 @@ import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
 import { useNav } from '../lib/nav'
 import { formatDate } from '../lib/format'
+import { loadScores, type Score } from '../lib/score'
+import ScoreBadge from '../components/ScoreBadge'
 
-type SessionRow = { id: string; title: string; started_at: string; ended_at: string | null; set_count: number }
+type SessionRow = { id: string; title: string; started_at: string; ended_at: string | null; set_count: number; score?: Score | null }
 
 const PAGE = 30
 
@@ -41,12 +43,14 @@ export default function History() {
       return
     }
     setOffline(false)
+    const scores = await loadScores((data ?? []).map((s) => s.id as string)).catch(() => new Map<string, Score>()) // a bonus: the list works without it
     const rows = (data ?? []).map((s) => ({
       id: s.id as string,
       title: s.title as string,
       started_at: s.started_at as string,
       ended_at: s.ended_at as string | null,
       set_count: (s.sets as unknown as { count: number }[])[0]?.count ?? 0,
+      score: scores.get(s.id as string) ?? null,
     }))
     setMore(rows.length === PAGE)
     setSessions((prev) => {
@@ -85,6 +89,7 @@ export default function History() {
               <span className="muted">
                 {formatDate(s.started_at)} · {s.set_count} sets{mins ? ` · ${mins} min` : ''}
               </span>
+              <ScoreBadge score={s.score} />
             </button>
           )
         })}
