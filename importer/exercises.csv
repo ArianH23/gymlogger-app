@@ -1,0 +1,73 @@
+name,equipment,unilateral,dumbbell_pair,load_type,rep_min,rep_max,increment_kg,comment
+Back Extension (Machine),machine,false,false,weighted,10,15,,
+Behind the Back Bicep Wrist Curl (Barbell),barbell,false,false,weighted,8,12,,"forearm curl, range is a guess"
+Bench Press (Barbell),barbell,false,false,weighted,6,10,,1 session in history
+Bench Press (Dumbbell),dumbbell,false,true,weighted,6,10,4,
+Bicep Curl (Dumbbell),dumbbell,false,true,weighted,8,12,4,1 session in history
+Bicep Curl (Machine),machine,true,false,weighted,8,12,,
+Butterfly (Pec Deck),machine,false,false,weighted,10,15,,
+Calf Extension (Machine),machine,false,false,weighted,10,15,,"data suggests 9 kg steps, verify at the gym"
+Chest Press (Machine),machine,false,false,weighted,6,10,,
+Chest Supported Incline Row (Dumbbell),dumbbell,false,true,weighted,8,12,4,
+Chest Supported Reverse Fly (Dumbbell),dumbbell,false,true,weighted,12,20,4,
+Chin Up (Assisted),machine,false,false,assisted,6,10,,"weight = assistance, lower is better"
+Concentration Curl,dumbbell,true,false,weighted,8,12,2,
+Cross Body Hammer Curl,dumbbell,false,false,weighted,8,12,2,1 session in history
+Crunch (Machine),machine,false,false,weighted,10,15,,
+Deadlift (Barbell),barbell,false,false,weighted,8,12,,1 session in history
+Decline Bench Press (Machine),machine,false,false,weighted,6,10,,1 session in history
+Dumbbell Row,dumbbell,false,true,weighted,8,12,4.0,"two dumbbells, pair total; used until 9 Feb 2026"
+Dumbbell Row (Single Arm),dumbbell,true,false,weighted,8,12,2.0,"one dumbbell, left/right; used from 19 Feb 2026"
+Glute Kickback (Machine),machine,true,false,weighted,10,15,,
+Goblet Squat,dumbbell,false,false,weighted,8,12,2,single dumbbell
+Hammer Curl (Dumbbell),dumbbell,false,true,weighted,8,12,4,
+Hip Adduction (Machine),machine,false,false,weighted,10,15,,
+Hip Thrust (Barbell),barbell,false,false,weighted,8,12,,
+Hip Thrust (Machine),machine,false,false,weighted,10,15,,"data suggests 10 kg steps, verify at the gym"
+Incline Bench Press (Dumbbell) 30°,dumbbell,false,true,weighted,6,10,4,importer: Hevy rows whose note mentions 30
+Incline Bench Press (Dumbbell) 45°,dumbbell,false,true,weighted,6,10,4,importer: all other Hevy 'Incline Bench Press (Dumbbell)' rows
+Incline Chest Press (Machine),machine,false,false,weighted,6,10,,1 session in history
+Iso-Lateral Chest Press (Machine),machine,false,false,weighted,6,10,,1 session in history
+Iso-Lateral High Row (Machine),machine,false,false,weighted,8,12,,
+Lat Pulldown (Cable),cable,false,false,weighted,8,12,2.5,
+Lat Pulldown (Machine),machine,false,false,weighted,8,12,,
+Lateral Raise (Cable),cable,false,false,weighted,12,20,2.5,1 session in history
+Lateral Raise (Dumbbell),dumbbell,false,true,weighted,12,20,4,
+Lateral Raise (Machine),machine,false,false,weighted,12,20,,
+Leg Extension (Machine),machine,false,false,weighted,10,15,,
+Leg Press Horizontal (Machine),machine,false,false,weighted,10,15,,"data suggests 9 kg steps, verify at the gym"
+Leg Raise Parallel Bars,bodyweight,false,false,bodyweight,10,15,,
+Lying Leg Curl (Machine),machine,false,false,weighted,10,15,,
+Lying Leg Raise,bodyweight,false,false,bodyweight,10,15,,
+Muscle Up,bodyweight,false,false,bodyweight,,,,no range: plan repeats last time
+Overhead Press (Barbell),barbell,false,false,weighted,6,10,,1 session in history
+Overhead Triceps Extension (Cable),cable,false,false,weighted,10,15,2.5,
+Preacher Curl (Machine),machine,false,false,weighted,8,12,,
+Push Up,bodyweight,false,false,bodyweight,10,15,,
+Reverse Crunch,bodyweight,false,false,bodyweight,10,15,,
+Reverse Fly Single Arm (Cable),cable,true,false,weighted,12,20,2.5,
+Reversed Seated Wrist Curl,dumbbell,false,false,weighted,12,20,2,unsure if dumbbell or barbell
+Romanian Deadlift (Barbell),barbell,false,false,weighted,8,12,,
+Romanian Deadlift (Dumbbell),dumbbell,false,true,weighted,8,12,4,
+Seated Cable Row - Bar Grip,cable,false,false,weighted,8,12,2.5,1 session in history
+Seated Dip Machine,machine,false,false,weighted,10,15,,
+Seated Incline Curl (Dumbbell),dumbbell,false,true,weighted,8,12,4,
+Seated Lateral Raise (Dumbbell),dumbbell,false,true,weighted,12,20,4,
+Seated Leg Curl (Machine),machine,false,false,weighted,10,15,,
+Seated Row (Machine),machine,false,false,weighted,8,12,,
+Seated Shoulder Press (Machine),machine,false,false,weighted,6,10,,
+Seated Triceps Press,machine,false,false,weighted,10,15,,
+Shoulder Press (Dumbbell),dumbbell,false,true,weighted,6,10,4,
+Single Arm Lateral Raise (Cable),cable,true,false,weighted,12,20,2.5,
+Sit Up,bodyweight,false,false,bodyweight,10,15,,
+Squat (Barbell),barbell,false,false,weighted,8,12,,
+Squat (Bodyweight),bodyweight,false,false,bodyweight,10,15,,
+Standing Calf Raise,bodyweight,false,false,bodyweight,10,15,,no weight logged in Hevy
+Sumo Squat (Barbell),barbell,false,false,weighted,8,12,,1 session in history
+Torso Rotation,machine,false,false,weighted,10,15,,
+Triceps Extension (Dumbbell),dumbbell,false,false,weighted,10,15,2,"one dumbbell, both hands"
+Triceps Extension (Machine),machine,false,false,weighted,10,15,,
+Triceps Pushdown,cable,false,false,weighted,10,15,2.5,
+Triceps Rope Pushdown,cable,false,false,weighted,10,15,2.5,
+Walking Lunge,bodyweight,false,false,bodyweight,10,15,,
+Walking Lunge (Dumbbell),dumbbell,false,true,weighted,8,12,4,some Hevy rows also carry distance/duration
