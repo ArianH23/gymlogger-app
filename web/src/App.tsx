@@ -1,4 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from './lib/supabase'
+import Login from './screens/Login'
+import Routines from './screens/Routines'
+import ActiveWorkout from './screens/ActiveWorkout'
+import { db } from './lib/db'
 
 type Tab = 'routines' | 'history'
 
@@ -8,19 +14,30 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function App() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined) // undefined = still checking
   const [tab, setTab] = useState<Tab>('routines')
+  const [openWorkout, setOpenWorkout] = useState<string | null>(null)
+
+  // Reopening the app mid-workout takes you straight back to it.
+  useEffect(() => {
+    db.workouts.filter((w) => !w.endedAt).first().then((w) => w && setOpenWorkout(w.id))
+  }, [])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    return () => data.subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) return null
+  if (session === null) return <div className="app"><Login /></div>
+  if (openWorkout) return <ActiveWorkout workoutId={openWorkout} onExit={() => setOpenWorkout(null)} />
 
   return (
     <div className="app">
       <main className="screen">
         {tab === 'routines' ? (
-          <>
-            <h1>Routines</h1>
-            <div className="card">
-              <strong>Workout A, B and C will appear here.</strong>
-              <p className="muted">Step 2 connects the app to your database.</p>
-            </div>
-          </>
+          <Routines onOpen={setOpenWorkout} />
         ) : (
           <>
             <h1>History</h1>
@@ -28,6 +45,9 @@ export default function App() {
               <strong>Your past sessions will appear here.</strong>
               <p className="muted">Built after the logging screen.</p>
             </div>
+            <button className="link" onClick={() => supabase.auth.signOut()}>
+              Sign out
+            </button>
           </>
         )}
       </main>
