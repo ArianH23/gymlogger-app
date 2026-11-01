@@ -1,12 +1,48 @@
+# ---- Secrets and personal data: never in git
 .env*
+!.env.example
+# the Hevy export (only the root folder: the watch app has a code package called "data")
 /data/
 *.csv
-node_modules/
-dist/
-__pycache__/
-.venv/
-supabase/.temp/
+# the exercise catalog is not private
 !importer/exercises.csv
 # personal body data and the prompt built from it
 docs/goal.md
 docs/scheduled_task_prompt.md
+# Android signing keys
+*.jks
+*.keystore
+# per-machine settings: the Android SDK path and the Supabase address/keys for the watch app
+local.properties
+
+# ---- Dependencies and build output
+node_modules/
+dist/
+dist_local/
+.wrangler/
+.venv/
+__pycache__/
+.pytest_cache/
+.gradle/
+build/
+*.apk
+*.aab
+
+# ---- Local Supabase scratch
+supabase/.temp/
+supabase/.branches/
+
+# ---- Test captures, scratch files and backups
+# emulator and browser screenshots from testing: regenerate when needed
+docs/screenshots/
+tmp_*
+*_tmp.*
+*.log
+*.bundle
+
+# ---- Editors and operating system
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

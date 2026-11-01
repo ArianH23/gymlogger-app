@@ -1,49 +1,103 @@
 # GymLogger
 
-A personal workout logger that replaces Hevy. You log sets on your phone; Claude plans the next session from
-your history; the app shows that plan next to what you did last time.
+A personal workout logger that replaces Hevy. You log sets on your phone or your watch; Claude plans the next session
+from your history; the app shows that plan next to what you did last time, and rates how each session went.
 
 - **Phone app**: an installable web app (PWA), works offline. `web/`
-- **Database + logic**: Supabase (Postgres). `supabase/`
+- **Watch app**: a native Wear OS app (Kotlin, Compose) for a Pixel Watch. `watch/`
+- **Database + logic**: Supabase (Postgres) and one small Edge Function. `supabase/`
 - **Claude**: reads your history through the Supabase connector and writes plans with `submit_plan`. `CLAUDE_GUIDE.md`
 - **Import** of the old Hevy export: `importer/`
 
-The full table/view/function diagram is `docs/schema.png` (redraw with `python scripts/draw_schema.py`).
+The full table/view/function diagram is `docs/schema.png` (redraw with `python scripts/draw_schema.py`, then render
+the SVG to PNG with a headless browser).
 
 ## How it fits together
 
 ```
- phone (PWA)                     Supabase (Postgres, one real project)                claude.ai
- ───────────                     ─────────────────────────────────────                ─────────
- log sets offline  ── upload ──► sessions, sets ... (row level security: only you)
- Finish            ── rpc ─────► finish_session ─► generate_plan (automatic plan)
-                                        │
-                                        └─► request_claude_plan ── web request ──►  scheduled task "GymLogger planner"
-                                            (token in Supabase Vault)                    │ reads  claude_instructions()
-                                                                                         │ reads  history, check-ins
- shows the plan  ◄── workout_plan ◄─── planned_sessions ◄─── submit_plan ◄───────────────┘ writes the plan
+ phone (PWA)  ─┐                    Supabase (Postgres, one real project)                      claude.ai
+               ├─ sync_workout ──►  sessions, sets, live workout ... (row level security: only you)
+ watch (Wear) ─┘                                │ Finish
+                                                ├─► finish_session ─► generate_plan (automatic plan)
+ watch pairing: phone makes a code ─► watch-pair function ─► a login      └─► request_claude_plan ──►  scheduled task "GymLogger planner"
+                                                                                                         │ reads  claude_instructions(), history, check-ins
+ shows the plan  ◄── workout_plan / workout_start ◄── planned_sessions ◄── submit_plan ◄────────────────┘ writes the plan
 ```
 
 **The rule that shapes everything: logic that more than one client needs lives in the database**, as views and
-functions, not in the app. So the phone, a future watch and Claude all get identical answers (progression
-rules, which routine is next, stats, plan merging, session edits). The app mostly displays and stores.
+functions, not in the app. So the phone, the watch and Claude get identical answers (progression rules, which routine
+is next, stats, plan merging, session edits, the session score, merging a workout done on two devices). The apps mostly
+display and store.
 
-All ids are UUIDs made by the client and every write is an upsert, so offline devices never clash.
+All ids are UUIDs made by the client and every write is safe to repeat, so offline devices never clash.
 Deletes are soft (`deleted_at`). Every table has row level security: only your account sees your rows.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order. Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 166 checks, run with `npx supabase test db` |
-| `web/src/screens`, `components`, `lib` | the app. `lib/sync.ts` uploads, `lib/db.ts` is the on-phone database (Dexie) |
+| `supabase/migrations/` | the database, in order (20 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 240 checks, run with `npx supabase test db` |
+| `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
+| `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
+| `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
+| `watch/` | the Wear OS app: `data/` (API, models, sync, storage), `ui/` (screens), `AppViewModel.kt`, `RestAlarm.kt`, `OngoingWorkout.kt` |
 | `importer/` | Hevy CSV importer (`hevy_import.py`), exercise catalog (`exercises.csv`), pytest tests |
-| `scripts/` | `publish_guide.py` (Claude's instructions into the database), `draw_schema.py`, `watch_api_check.py` (plays the watch over plain HTTP to prove the contract) |
+| `scripts/` | `publish_guide.py` (Claude's instructions into the database), `draw_schema.py`, `cut_faces.py`, `md_to_pdf.py`, `watch_pairing_check.py` and `watch_api_check.py` (play the watch over plain HTTP) |
 | `CLAUDE_GUIDE.md` | how Claude reads the database and writes a plan |
-| `docs/evidence.md` | short, verified research notes Claude cites (published as `evidence-notes`) |
+| `docs/evidence.md` (+ `.pdf`) | short, verified research notes Claude cites (published as `evidence-notes`) |
 | `docs/prompts/` | the two short prompts: the scheduled task and the chat project |
-| `docs/WATCH.md` | plan and contract for the future Wear OS app |
+| `docs/WATCH.md` | how the watch app works: pairing, the calls it makes, sharing the workout |
+
+## The session score and the faces
+
+Every session that followed a plan gets a score: the share of the **planned sets that were met** (planned reps at the
+planned weight or better; sets you didn't log count as not met). One database function, `session_tier`, turns it into a tier:
+
+| Met | Tier | Face |
+|---|---|---|
+| 90% and up | great | the grin |
+| 70-89% | good | calm, eyes closed |
+| 50-69% | average | neutral |
+| 30-49% | weak | side-eye |
+| under 30% | poor | the scowl |
+
+At the end you can also tap a **feeling** from 1 (awful) to 5 (great). Claude reads both next to each other: a high score
+with a low feeling means the session cost a lot of recovery; a low score with a high feeling means the plan was too heavy.
+Imported Hevy sessions followed no plan, so they have no score. View: `session_scores`.
+
+## One workout, two devices
+
+The workout in progress lives in the database, so you can start on the watch and carry on on the phone (or the other
+way round). One function, `sync_workout`, does all the merging; each device saves everything locally first and sends its
+view every few seconds. Rules: one open workout per user; the same set logged on both devices is one row (the newer log
+wins); a deleted set stays deleted; finishing runs `finish_session`. Details: `docs/WATCH.md`.
+
+## The watch app
+
+**Pairing (no typing).** Phone: Body tab, **Pair watch**, a 6-digit code (valid 10 minutes, works once). Watch: pick the
+digits with the crown or by dragging, tap Pair. The code is checked by the `watch-pair` function and the database
+(`claim_watch_pairing`); after 5 wrong guesses every open code is cancelled.
+
+**On the watch.** Routines (Next up first) → exercises → sets → a set editor with a weight wheel and a reps wheel (crown or
+drag; the step is the exercise's `increment_kg`, or 2.5 kg). ‹ › step between sets and across exercises; logging moves to
+the next empty set; the last set asks whether you are done. Rest timer (tap it for -15 / +15 / Skip / Alarm on-off), vibration
+through an Android alarm so it works with the screen asleep, the time and elapsed time at the top, and a "workout going on"
+indicator on the watch face that returns you to the app.
+
+**Build and install** (Windows; Android Studio provides Java and the SDK, nothing else to install):
+
+```powershell
+cd watch
+.\build.ps1 assembleDebug      # talks to the LOCAL database (the emulator reaches your PC at 10.0.2.2)
+.\build.ps1 assembleRelease    # talks to your REAL project: needs supabase.cloud.url / supabase.cloud.key in watch/local.properties
+```
+
+Outputs: `watch/app/build/outputs/apk/{debug,release}/`. To install on the real watch: Settings → System → About → tap
+Build number 7 times; Developer options → ADB debugging and Wireless debugging; "Pair new device" shows an address and code:
+`adb pair <address>`, then `adb connect <the other address>`, then `adb -s <address> install -r app-release.apk`. Turn Wireless
+debugging off afterwards. Emulator: `emulator -avd watch6 -no-window -no-audio -no-snapshot -gpu swiftshader_indirect`; if a
+"Hello" screen covers the app, wake it and start the app again.
 
 ## Everyday tasks
 
@@ -57,14 +111,21 @@ the local database (below).
 **Local database (safe sandbox).** Needs Docker Desktop running.
 `npx supabase start -x imgproxy,edge-runtime,logflare,vector,realtime,storage-api,inbucket,mailpit`, then
 `npx supabase test db`. To run the app against it, put the local URL and key in `web/.env.localdb.local` and use
-`npx vite --mode localdb`. `npx supabase db reset` rebuilds it from the migrations.
+`npx vite --mode localdb`. `npx supabase db reset` rebuilds it from the migrations. After adding a migration, apply it
+locally with `npx supabase migration up` (the tests do not apply migrations).
+For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
 **Change the database.** Add a new file in `supabase/migrations/`, add a pgTAP test, run `npx supabase migration up`
 and `npx supabase test db`. To publish: `npx supabase db push --linked --dry-run` (read the list), then
-`npx supabase db push --linked`. Push the database **before** deploying an app that needs it.
+`npx supabase db push --linked`.
 
-**Deploy the app.** `cd web && npm run build && npx wrangler deploy`. It is static hosting on Cloudflare; the
-address is printed at the end. The phone updates itself the next time it opens with signal.
+**Release order when several parts change.** Database first, then the function, then the site, then the watch:
+1. `npx supabase db push --linked` (after the dry run)
+2. `npx supabase functions deploy watch-pair --project-ref <ref> --no-verify-jwt`
+3. `cd web && npm run build && npx wrangler deploy` (static hosting on Cloudflare; the phone updates itself the next time it opens with signal)
+4. `cd watch && .\build.ps1 assembleRelease`, then install with `adb`.
+
+An app that needs a new database function must never reach people before that function exists.
 
 **Change Claude's instructions.** Edit `CLAUDE_GUIDE.md`, `docs/evidence.md` or `docs/goal.md` (which stays out of git), then
 `python scripts/publish_guide.py --user-id <your auth user id> --env-file importer/.env.cloud --apply`. The chat
@@ -74,28 +135,33 @@ project and the scheduled task both read it from the database, so nothing is pas
 then `python hevy_import.py --user-id <id>` is a dry run; add `--env-file .env.cloud --apply` to write. Re-running
 is safe (deterministic ids) and never overwrites exercise settings you edited. Tests: `python -m pytest`.
 
+**Change the faces.** Put the new expression sheet in `docs/` and run `python scripts/cut_faces.py "<sheet>.png"`
+(needs `pip install pillow numpy scipy`). The order on the sheet is great, good, average, weak, poor.
+
 ## What happens when you press Finish
 
-1. The workout is saved on the phone, then uploaded (session, sets), then `finish_session` runs.
+1. The workout (with your 1-5 feeling) is saved on the device, then `sync_workout` sends it and finishes the session.
 2. `finish_session` marks the plan you followed as used, writes the new **automatic plan** (`generate_plan`), and
    asks Claude for a plan (`request_claude_plan`, once per session, only for app sessions with a routine).
 3. About 30 seconds later the scheduled task has called `submit_plan`. A **Claude plan beats the automatic one**.
 4. If you edit a routine afterwards, `workout_plan` keeps Claude's targets for exercises that remain, drops removed
    ones and appends new ones from the automatic plan.
 
-Without signal the workout waits on the phone and uploads by itself later.
+Without signal the workout waits on the device and uploads by itself later.
 
 ## Secrets: what exists and where (never in git)
 
 | Secret | Lives in |
 |---|---|
-| Supabase **secret** key (importer, publish script) | `importer/.env.cloud` on this PC only. Never in the app |
-| Supabase **publishable** key (public by design) | `web/.env.local` |
+| Supabase **secret** key (importer, publish script) | `importer/.env.cloud` on this PC only. Never in an app |
+| Supabase **publishable** key (public by design) | `web/.env.local`, and `watch/local.properties` for release builds (git-ignored) |
 | Scheduled task address + token | Supabase Vault (`claude_fire_url`, `claude_fire_token`). To rotate: regenerate in the task's settings at claude.ai/code/routines, then update the Vault secret |
+| The watch's login | on the watch (a refresh token made by pairing). There is no per-watch revoke list: if the watch is lost, sign the user out of all sessions in Supabase and sign in again on the phone and watch |
 | Cloudflare login | stored by `wrangler login` |
 | Your goal and body profile | `docs/goal.md` (git-ignored) and the `documents` table |
 
-`.gitignore` also keeps `data/` (the Hevy CSV) and every `.env*` file out.
+`.gitignore` keeps `/data/` (the Hevy CSV), every `.env*` file, `local.properties`, signing keys, build output, screenshots
+and scratch files out. Comments in it must be on their own line (a `#` after a pattern becomes part of the pattern).
 
 ## Conventions the numbers follow
 
@@ -103,23 +169,32 @@ Without signal the workout waits on the phone and uploads by itself later.
 - One-side-at-a-time exercises: two rows per set (`side` L and R); the result is the **lower** rep count.
 - Assisted exercises: `weight_kg` is the assistance, so **lower is better**.
 - Incline bench is two exercises (30° and 45°). Dumbbell Row changed from two dumbbells to single-arm on 19 Feb 2026.
-- Machine weight steps (`increment_kg`) are empty until you set them; plans never invent a step.
+- Machine weight steps (`increment_kg`) are empty until you set them; plans never invent a step (the watch wheel uses 2.5 kg).
+- A set is "met" when the planned reps were reached at the planned weight or heavier (assisted: the same or less help).
 
 ## Gotchas we hit
 
 - Windows PowerShell blocks `npx`: use `npx.cmd`. Docker Desktop must be running for the local database.
 - A dev copy of the app on your PC is wired to the real database (see above).
+- The `data/` rule in `.gitignore` is `/data/` on purpose: the watch app has a code package called `data`.
+- Big multi-line shell commands are unreliable in Git Bash on this machine: write files, then run short commands.
+- Android Studio's Java is used for builds (`build.ps1` sets it); the watch build needs Android SDK platform 37 and Gradle 9.8.
+- Wear OS: a watch app that keeps the screen on drains the battery, so the rest alarm is a real Android alarm and the
+  screen sleeps normally; the "workout going on" counter uses the time-since-boot clock, not a calendar time.
+- Tests that read whole tables must clear their own slate first (the local database keeps what you did by hand).
 - Scheduled tasks are a research preview at Anthropic: the automatic plan keeps working if that part breaks.
 - The Supabase connector labels query results "untrusted data"; the prompts say explicitly that
   `claude_instructions()` is the exception.
 
 ## Not built
 
-Warm-up sets (you don't use them), the Wear OS watch app (`docs/WATCH.md`), GitHub/CI (skipped on purpose; the
-code currently only lives on this PC, see the backup note below).
+Warm-up sets (you don't use them), GitHub/CI (skipped on purpose; the code lives on this PC plus a backup bundle).
+Ideas not done: an "all sets done, finish?" prompt on the phone, changing the default rest lengths from the watch,
+bigger ‹ › targets if your finger misses them.
 
 ## Backup
 
 The code and its full history are in this folder's `.git`. A portable copy can be made at any time with
-`git bundle create gymlogger.bundle --all` (restore with `git clone gymlogger.bundle`). Secrets and your goal text
-are not in git; the goal is also stored in the `documents` table, and keys can be regenerated.
+`git bundle create gymlogger.bundle --all` (restore with `git clone gymlogger.bundle`); the last one is kept in
+`Documents\GymLogger_backups\`. Secrets and your goal text are not in git; the goal is also stored in the
+`documents` table, and keys can be regenerated.

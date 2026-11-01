@@ -4,8 +4,9 @@ from pathlib import Path
 from xml.sax.saxutils import escape as esc
 
 W, LH, HEAD = 340, 19, 34
-CAT, LOG, PLAN, BODY, DOC = (
-    ("#1f4e79", "#dbe9f7"), ("#1e6b3a", "#dcf1e3"), ("#9a4f00", "#fde9d0"), ("#6b3fa0", "#ece1f7"), ("#555555", "#e8e8e8"))
+CAT, LOG, PLAN, BODY, DOC, WATCH = (
+    ("#1f4e79", "#dbe9f7"), ("#1e6b3a", "#dcf1e3"), ("#9a4f00", "#fde9d0"), ("#6b3fa0", "#ece1f7"), ("#555555", "#e8e8e8"),
+    ("#0b6e6e", "#d9f1f1"))
 STAMPS = "user_id · timestamps · deleted_at"
 
 # name: (x, y, palette, columns, footer)
@@ -17,7 +18,8 @@ T = {
     "session_exercise_notes": (30, 640, LOG, ["id  PK", "session_id  → sessions", "exercise_id  → exercises", "note"], STAMPS),
     "routines": (440, 60, CAT, ["id  PK", "name  (Workout A/B/C...)", "position"], STAMPS),
     "sessions": (440, 250, LOG, ["id  PK", "routine_id  → routines  (can be empty)", "title", "started_at", "ended_at", "notes",
-                                  "source  app / hevy_import", "plan_requested_at"], STAMPS),
+                                  "source  app / hevy_import", "plan_requested_at", "feeling  1-5 (optional)", "live  (the open workout's layout)",
+                                  "live_updated_at"], STAMPS),
     "sets": (440, 540, LOG, ["id  PK", "session_id  → sessions", "exercise_id  → exercises", "set_no", "side  L / R / empty",
                               "weight_kg  (pair total / assistance)", "reps", "is_warmup", "logged_at"], STAMPS),
     "planned_sessions": (850, 200, PLAN, ["id  PK", "routine_id  → routines", "created_by  rules / claude", "status  pending/used/superseded",
@@ -26,6 +28,8 @@ T = {
                                        "set_no", "target_weight_kg", "target_reps_min", "target_reps_max", "note"], "user_id · timestamps"),
     "body_checkins": (1260, 60, BODY, ["id  PK", "checked_on  (one per day)", "bodyweight_kg", "waist_cm", "sleep_hours", "body_fat_pct",
                                         "notes"], STAMPS),
+    "watch_pairings": (1260, 480, WATCH, ["id  PK", "code_hash  (the code is never stored)", "attempts  (dies at 5 wrong)", "expires_at  (10 minutes)",
+                                           "used_at", "cancelled_at"], "user_id · created_at"),
     "documents": (1260, 330, DOC, ["id  PK", "name  planning-guide / owner-goal", "body  (the text Claude reads)"], "user_id · timestamps"),
 }
 
@@ -39,6 +43,7 @@ VIEWS = [
     ("exercise_summary", "per exercise: sessions, last done, best"),
     ("session_plan_performance", "sets that met the plan you followed"),
     ("weekly_overview", "per week: training next to your check-ins"),
+    ("session_scores", "per session: % of planned sets met, its tier, your 1-5 feeling"),
 ]
 FUNCS = [
     ("generate_plan(routine)", "progression rules → the automatic plan"),
@@ -50,7 +55,11 @@ FUNCS = [
     ("exercise_history(exercise, n)", "the last n sessions of an exercise"),
     ("claude_instructions(with_goal)", "the guide (and goal) Claude reads"),
     ("claude_automation_status()", "checks the automation secrets"),
-    ("round_to_step · deload_weight · set_updated_at", "small helpers"),
+    ("workout_start(routine)", "everything needed to start a workout, in one call"),
+    ("sync_workout(json) / open_workout()", "share the workout in progress between phone and watch"),
+    ("session_tier(pct)", "great / good / average / weak / poor"),
+    ("create_watch_pairing() / claim_watch_pairing(code)", "sign the watch in with a 6-digit code"),
+    ("round_to_step · deload_weight · set_updated_at · workout_json · watch_code_hash", "small helpers"),
 ]
 
 box = {}
@@ -111,12 +120,13 @@ legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 70}" width="1580
 <rect x="276" y="{H - 56}" width="14" height="14" fill="{PLAN[1]}" stroke="{PLAN[0]}"/><text x="298" y="{H - 44}">plans</text>
 <rect x="372" y="{H - 56}" width="14" height="14" fill="{BODY[1]}" stroke="{BODY[0]}"/><text x="394" y="{H - 44}">body / recovery</text>
 <rect x="530" y="{H - 56}" width="14" height="14" fill="{DOC[1]}" stroke="{DOC[0]}"/><text x="552" y="{H - 44}">Claude's instructions</text>
+<rect x="720" y="{H - 56}" width="14" height="14" fill="{WATCH[1]}" stroke="{WATCH[0]}"/><text x="742" y="{H - 44}">watch pairing</text>
 <text x="46" y="{H - 26}">Arrow = belongs to (foreign key). Every table: row level security, only your account. Deletes are soft (deleted_at). All ids are UUIDs made by the client.</text></g>'''
 
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="{H}" viewBox="0 0 1640 {H}" font-family="Segoe UI, Arial, sans-serif">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#444"/></marker></defs>
 <rect width="1640" height="{H}" fill="#fff"/>
-<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 12 functions</text>
+<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 21 functions</text>
 {"".join(arrows)}{tables}{p1}{p2}{legend}</svg>'''
 
 out = Path(__file__).resolve().parent.parent / "docs" / "schema.svg"

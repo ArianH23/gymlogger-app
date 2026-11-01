@@ -1,11 +1,12 @@
-# The Wear OS watch app: how it will work, and what is already prepared
+# The Wear OS watch app
 
 ## The short version
 
 The phone uses a **website** (a PWA). A watch cannot: Wear OS has no usable browser and does not run web apps.
-So the watch gets a **native app**, written in Kotlin with Jetpack Compose for Wear OS. It is a different
+So the watch has a **native app**, written in Kotlin with Jetpack Compose for Wear OS (`watch/`). It is a different
 program from the website, but it talks to **the same database with the same rules**. Nothing about your data,
-plans or Claude changes: the watch is just a second screen that reads the same plan and writes the same sets.
+plans or Claude changes: the watch is a second screen that reads the same plan and writes the same sets, and the
+workout you are doing is shared live with the phone.
 
 ```
  phone website ─┐
@@ -13,36 +14,67 @@ plans or Claude changes: the watch is just a second screen that reads the same p
  watch app ─────┘
 ```
 
-## What the watch app would do
+It was built and tested for a Wear OS watch (Wi-Fi), Wear OS 6 and up (minSdk 33).
 
-1. **Routine list**, with "Next up" first.
-2. **Workout screen**: swipe between exercises; for each set a row with the target and last time, a weight/reps
-   stepper (the crown or tap), and one tap to log. Left/right exercises have an L and an R row.
-   **No typing of numbers, as in Hevy:** weight and reps are wheels. Turn the watch's crown to step the value up or
-   down, or drag the number up or down with a finger. The step for weight is the exercise's own `increment_kg`
-   (2.5 kg if none is set), for reps it is 1. Both start prefilled from the plan, so a normal set is one glance and
-   one tap on the check.
-3. **Rest timer** after each set, with a vibration at zero (a watch is better at this than a phone).
-4. **Finish**, which uploads and lets the database ask Claude for the next plan, exactly as on the phone.
-5. **Offline first**: sets are saved on the watch immediately and uploaded when there is a connection.
+## What it does
 
-It would not edit routines, show charts or manage check-ins. Those stay on the phone.
+1. **Routines**, with "Next up" first. With a workout open, "Resume" comes first and the others cannot be started.
+2. **Overview**: the exercises of the workout with how many sets are done; Finish and Discard at the bottom.
+3. **Sets of one exercise**: one row per set with the plan and last time (`plan 44×7-10 · last 44×6`), logged sets as
+   `✓ 44×7`, **+ Set**, and a **Next exercise** button at the end.
+4. **Set editor**: a weight wheel and a reps wheel, each showing its unit ("44 kg", "6 reps"). **No typing of numbers, as
+   in Hevy:** turn the crown to change the highlighted wheel, tap the other wheel to switch to it, or drag either one with a
+   finger. The weight step is the exercise's own `increment_kg` (2.5 kg if none is set), reps step by 1. Both start from the
+   plan, so a normal set is one glance and one tap on **Log**. The ‹ › beside the set number step through every set of the
+   workout, crossing into the next or previous exercise. Logging moves on to the next empty set (in the next exercise when
+   this one is done); the last set brings up **"All sets done: finish the workout?"**.
+   For a logged set the buttons are **Save** and **Unlog** (clears it, the row stays); for an empty one **✕** takes the row off.
+   Left/right exercises have an L and an R row.
+5. **Rest timer** after each completed set (for left/right: after both sides), by the top of the rep range (150 s up to 10,
+   90 s up to 15, else 60 s). Tap the rest line for the rest screen: **-15 / +15 / Skip / Alarm on-off**. The vibration is an
+   Android alarm, so it goes off on time with the screen asleep. The alarm switch is per device.
+6. **Clock**: the time of day and the time since the workout started, at the top of every workout screen.
+7. **"Workout going on"** on the watch face (a Wear OS Ongoing Activity): a small dumbbell with a running timer; tapping it
+   returns to the app. It needs the notification permission (asked once).
+8. **Finish**: "How did it feel?" (1 to 5, optional), then the workout is saved and uploaded; the database marks the plan
+   used, makes the next plan and asks Claude, exactly as on the phone.
+9. **Offline first**: everything is written to a file on the watch before anything else, and goes out when there is signal.
+   A queue of finished workouts waiting to upload is shown on the routine list.
 
-## Why this is cheap to build now
+It does not edit routines, show charts or manage check-ins. Those stay on the phone.
 
-Everything that is "logic" already lives in the database, so the watch only has to display and send:
+## Signing in on a watch
 
-| Need | Already exists as |
-|---|---|
-| Routines and which is next | view `routine_status` |
-| Start a workout (exercises, targets, last time) in **one call** | function `workout_start(routine_id)` |
-| Save a session and its sets | upserts into `sessions` and `sets` with ids made on the watch |
-| Finish (mark plan used, new plan, ask Claude) | function `finish_session(session_id)` |
-| Stay signed in | Supabase refresh token |
+No typing: the watch is paired with a **6-digit code** made on the phone.
 
-`scripts/watch_api_check.py` plays the watch with plain HTTP calls against the local database and checks all of
-this, including that sending the same sets twice creates no duplicates. It passes. Run it any time:
-`importer/.venv/Scripts/python scripts/watch_api_check.py --email <email> --password <password>`.
+1. Phone (signed in): Body tab, "Pair watch" calls `create_watch_pairing()` and shows the code (valid 10 minutes, works once).
+2. Watch: you pick the 6 digits with the wheels.
+3. The watch sends the code to the `watch-pair` Edge Function (`supabase/functions/watch-pair`), which asks the database
+   (`claim_watch_pairing`) and, if the code is good, returns a normal login (access + refresh token). The watch keeps the
+   refresh token and renews it by itself.
+
+A code works once, expires after 10 minutes, only its hash is stored, and every open code dies after 5 wrong guesses
+(so guessing is not practical; the price is that wrong guesses also cancel your own code: make a new one).
+
+## Sharing the workout in progress with the phone
+
+The workout you are doing lives in the database, so you can start on the watch and carry on on the phone (or the other way
+round). One database function, `sync_workout`, does all the merging; the phone and the watch only send their view of the
+workout and adopt the answer. The rules (all in `supabase/migrations/..._live_workout.sql`, with tests):
+
+- **One open workout per user.** Starting a second one returns the open one instead (`other_open`).
+- **The same set from two devices is one row:** the newer log wins and the row keeps its first id.
+- **A deleted set stays deleted**, even if another device still has it and sends it again.
+- **The plan layout** (exercises, added and removed sets) is last-writer-wins.
+- **Finishing** saves the feeling, marks the plan used and makes the next plan. A finished or discarded workout disappears
+  from the other device within a few seconds.
+- **No signal:** everything is saved on the device first (a JSON file on the watch, IndexedDB on the phone) and goes out when
+  the connection is back. Starting a workout with no signal cannot know about one open elsewhere; if both end up open, the
+  second is kept apart and uploads when it is finished.
+
+Both devices ask every 6 seconds while their app is on screen, and straight after you change something. The watch-face
+indicator can linger if the workout is finished on the phone while the watch app is not running; it clears the next time
+the app opens.
 
 ## The calls the watch makes (REST, all with `apikey: <publishable key>` and `Authorization: Bearer <token>`)
 
@@ -55,67 +87,50 @@ POST /rest/v1/rpc/sync_workout                 {"p_workout": {...}}          -> 
 POST /rest/v1/rpc/open_workout                 {}                            -> the workout open on any device, or null
 ```
 
-## Sharing the workout in progress with the phone
+Rules every client follows: ids are UUIDs made on the client; every write is safe to repeat; weights for two-dumbbell
+exercises are the pair total; left/right sets are two rows with `side` `L` and `R`.
 
-The workout you are doing lives in the database, so you can start on the watch and carry on on the phone (or the other way
-round). One database function, `sync_workout`, does all the merging; the phone and the watch only send their view of the
-workout and adopt the answer. The rules (all in `supabase/migrations/..._live_workout.sql`, with tests):
+## How the code is organised (`watch/app/src/main/java/com/gymlogger/watch/`)
 
-- **One open workout per user.** Starting a second one returns the open one instead (`other_open`).
-- **The same set from two devices is one row:** the newer log wins and the row keeps its first id.
-- **A deleted set stays deleted**, even if another device still has it and sends it again.
-- **The plan layout** (exercises, added and removed sets) is last-writer-wins.
-- **Finishing** saves the feeling, marks the plan used and makes the next plan, exactly as before. A finished or discarded
-  workout disappears from the other device within a few seconds.
-- **No signal:** everything is saved on the device first (a JSON file on the watch, IndexedDB on the phone) and goes out when
-  the connection is back. Starting a workout with no signal cannot know about one open elsewhere; if both end up open, the
-  second is kept apart and uploads when it is finished.
+| File | What |
+|---|---|
+| `data/Api.kt` | the HTTP calls, the login and its renewal |
+| `data/Models.kt` | the shapes of the workout, the plan and the server's answers |
+| `data/WorkoutLogic.kt` | the rules of the workout screens (which rows exist, defaults, rest length, next/previous set), no UI |
+| `data/Sync.kt` | building the `sync_workout` request and reconciling the answer (pure functions) |
+| `data/WorkoutStore.kt` | the open workout, the upload queue and pending discards, as files |
+| `AppViewModel.kt` | what is on screen; every change to the open workout goes through one locked `change()` |
+| `ui/` | the screens |
+| `RestAlarm.kt`, `OngoingWorkout.kt` | the rest vibration (Android alarm) and the watch-face indicator |
 
-Both devices ask every 6 seconds while their app is on screen, and straight after you change something.
+## Building and installing (no Play Store needed)
 
-## Signing in on a watch
+```powershell
+cd watch
+.\build.ps1 assembleDebug      # talks to the LOCAL database (the emulator reaches your PC at 10.0.2.2)
+.\build.ps1 assembleRelease    # talks to your REAL project: needs supabase.cloud.url / supabase.cloud.key in watch/local.properties
+```
 
-No typing: the watch is paired with a **6-digit code** made on the phone.
+On the watch: Settings → System → About → tap Build number 7 times; Developer options → ADB debugging and Wireless debugging;
+"Pair new device" shows an address and a code. On the PC: `adb pair <address>` (type the code), `adb connect <the other
+address>`, then `adb -s <address> install -r watch/app/build/outputs/apk/release/app-release.apk`. Turn Wireless debugging off
+afterwards. Android Studio's Wear OS **emulator** (`watch6`) covers most of the work; it cannot turn a crown, so the crown
+only shows on the real watch.
 
-1. Phone (signed in): "Pair watch" calls `create_watch_pairing()` and shows the code (valid 10 minutes, works once).
-2. Watch: you pick the 6 digits with the wheels.
-3. The watch sends the code to the `watch-pair` Edge Function (`supabase/functions/watch-pair`), which asks the database
-   (`claim_watch_pairing`) and, if the code is good, returns a normal login (access + refresh token). The watch keeps the
-   refresh token and renews it by itself.
+## Tests and checks
 
-A code works once, expires after 10 minutes, only its hash is stored, and every open code dies after 5 wrong guesses
-(so guessing is not practical; the price is that wrong guesses also cancel your own code: make a new one).
-`scripts/watch_pairing_check.py` plays phone and watch over HTTP and checks all of it.
+- `npx supabase test db`: the database rules (pairing, `sync_workout`, scores, plans...), 240 checks.
+- `scripts/watch_pairing_check.py` (needs `npx supabase functions serve --no-verify-jwt`): plays phone and watch over HTTP
+  through the whole pairing, including wrong codes and reuse.
+- `scripts/watch_api_check.py`: plays an older, simpler watch (plain upserts and `finish_session`) to prove a client other
+  than the website can run a whole workout.
+- The screens were checked on the emulator and the real Wear OS watch with screenshots (not committed).
 
-## Installing it (no Play Store needed)
+## Honest risks and limits
 
-You enable **Developer options** and **ADB debugging over Wi-Fi** on the watch, then Android Studio on your PC
-installs the app directly. Android Studio also has a Wear OS **emulator**, so most of the work can be tried before
-the watch is even in the loop.
-
-## Network
-
-The watch uses its own Wi-Fi, or (Pixel Watch LTE) cellular, and otherwise the phone's connection through the
-Bluetooth link. A normal HTTP call from the app works in all of these. At the gym with bad signal the offline queue
-covers it, as on the phone.
-
-## What I need from you before starting
-
-1. **Which watch exactly** (Pixel Watch 1, 2 or 3; Wi-Fi or LTE).
-2. **Android Studio installed on this PC** (a few GB). I cannot install it for you without your OK.
-3. **A decision on scope:** log sets only (smallest), or also browse plans and last session.
-
-## Proposed steps, each shown to you before the next
-
-1. Create the Android Studio project, sign in, show the routine list (emulator).
-2. The workout screen: plan, last time, set rows, one-tap log.
-3. Local save (Room) and upload with retry, then `finish_session`.
-4. Rest timer with vibration, and an "ongoing activity" so the workout stays on the watch face.
-5. Install on your watch and use it for a real session.
-
-## Honest risks
-
-- **It is a second codebase** (Kotlin) next to the website (TypeScript), so any new screen has to be built twice.
-  That is why the logic lives in the database.
-- **A tiny screen** makes entering numbers slow: the stepper must be good. This is the part that needs real use.
-- **Battery**: keeping the screen on for a whole workout costs some; the ongoing-activity feature helps.
+- **It is a second codebase** (Kotlin) next to the website (TypeScript), so any new screen has to be built twice. That is why
+  the logic lives in the database.
+- **A tiny screen**: entering numbers is the hard part; the wheels and the prefilled values are the answer, and they need real use.
+- **Round screen**: content near the edge is clipped, so labels are short and buttons narrow near the top and bottom.
+- **The alarm switch** and the rest lengths are per device; the phone has its own.
+- Imported Hevy sessions have no plan, so no score.
