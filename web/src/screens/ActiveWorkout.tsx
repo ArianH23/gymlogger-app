@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type LoggedSet, type PlanExercise, type PlanSet, type Workout } from '../lib/db'
 import RestTimer, { restSeconds, type Rest } from '../components/RestTimer'
 import { syncPending } from '../lib/sync'
+import { useNav } from '../lib/nav'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -83,6 +84,7 @@ function SetRow({ ex, setNo, side, logged, draft, onDraft, onToggle }: RowProps)
 }
 
 export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string; onExit: () => void }) {
+  const { push } = useNav()
   const workout = useLiveQuery(() => db.workouts.get(workoutId), [workoutId])
   const logged = useLiveQuery(() => db.sets.where('sessionId').equals(workoutId).toArray(), [workoutId])
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
@@ -168,7 +170,9 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
           const sides: Side[] = ex.unilateral ? ['L', 'R'] : [null]
           return (
             <section className="card exercise" key={ex.exerciseId}>
-              <h2>{ex.name}</h2>
+              <button className="ex-title" onClick={() => push({ type: 'exercise', id: ex.exerciseId })}>
+                {ex.name} <span aria-hidden>›</span>
+              </button>
               {setNos.map((setNo) => {
                 const planSet = ex.sets.find((s) => s.setNo === setNo)
                 return (

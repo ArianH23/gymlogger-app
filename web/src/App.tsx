@@ -5,17 +5,22 @@ import Login from './screens/Login'
 import Routines from './screens/Routines'
 import ActiveWorkout from './screens/ActiveWorkout'
 import History from './screens/History'
+import Exercises from './screens/Exercises'
+import { PageFor } from './screens/Pages'
+import { NavProvider, useNav } from './lib/nav'
 import { db } from './lib/db'
 import { syncPending } from './lib/sync'
 
-type Tab = 'routines' | 'history'
+type Tab = 'routines' | 'exercises' | 'history'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'routines', label: 'Routines' },
+  { id: 'exercises', label: 'Exercises' },
   { id: 'history', label: 'History' },
 ]
 
-export default function App() {
+function Shell() {
+  const { stack } = useNav()
   const [session, setSession] = useState<Session | null | undefined>(undefined) // undefined = still checking
   const [tab, setTab] = useState<Tab>('routines')
   const [openWorkout, setOpenWorkout] = useState<string | null>(null)
@@ -42,16 +47,28 @@ export default function App() {
 
   if (session === undefined) return null
   if (session === null) return <div className="app"><Login /></div>
-  if (openWorkout) return <ActiveWorkout workoutId={openWorkout} onExit={() => setOpenWorkout(null)} />
+
+  const page = stack.length > 0 ? stack[stack.length - 1] : null
+
+  if (openWorkout) {
+    // The workout stays mounted (but hidden) while a page is open on top of it,
+    // so typed values and the rest timer survive a look at an exercise's stats.
+    return (
+      <>
+        <div hidden={page !== null}>
+          <ActiveWorkout workoutId={openWorkout} onExit={() => setOpenWorkout(null)} />
+        </div>
+        {page && <PageFor view={page} />}
+      </>
+    )
+  }
+
+  if (page) return <PageFor view={page} />
 
   return (
     <div className="app">
       <main className="screen">
-        {tab === 'routines' ? (
-          <Routines onOpen={setOpenWorkout} />
-        ) : (
-          <History />
-        )}
+        {tab === 'routines' ? <Routines onOpen={setOpenWorkout} /> : tab === 'exercises' ? <Exercises /> : <History />}
       </main>
 
       <nav className="nav">
@@ -64,5 +81,13 @@ export default function App() {
         </div>
       </nav>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <NavProvider>
+      <Shell />
+    </NavProvider>
   )
 }

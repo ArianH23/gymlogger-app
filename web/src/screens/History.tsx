@@ -2,25 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
+import { useNav } from '../lib/nav'
+import { formatDate } from '../lib/format'
 
 type SessionRow = { id: string; title: string; started_at: string; ended_at: string | null; set_count: number }
 
-type SetRow = {
-  exercise_id: string
-  set_no: number
-  side: 'L' | 'R' | null
-  weight_kg: number | null
-  reps: number | null
-  is_warmup: boolean
-  logged_at: string
-  exercises: { name: string; dumbbell_pair: boolean; load_type: string }
-}
-
 const PAGE = 30
-const num = (n: number | null) => (n === null ? '' : String(Number(n.toFixed(2))))
-
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 
 function minutes(a: string, b: string | null) {
   if (!b) return null
@@ -28,78 +15,12 @@ function minutes(a: string, b: string | null) {
   return m > 0 && m < 600 ? m : null
 }
 
-/** One line per exercise: sets in order, e.g. "44×6 · 44×6 · 44×4", left/right as "7.5×11/10". */
-function summarise(sets: SetRow[]) {
-  const byExercise = new Map<string, { name: string; first: string; sets: SetRow[] }>()
-  for (const s of sets) {
-    const e = byExercise.get(s.exercise_id) ?? { name: s.exercises.name, first: s.logged_at, sets: [] }
-    e.sets.push(s)
-    if (s.logged_at < e.first) e.first = s.logged_at
-    byExercise.set(s.exercise_id, e)
-  }
-  return [...byExercise.values()]
-    .sort((a, b) => a.first.localeCompare(b.first) || a.name.localeCompare(b.name))
-    .map((e) => {
-      const bySetNo = new Map<number, SetRow[]>()
-      for (const s of e.sets) bySetNo.set(s.set_no, [...(bySetNo.get(s.set_no) ?? []), s])
-      const parts = [...bySetNo.entries()]
-        .sort((a, b) => a[0] - b[0])
-        .map(([, rows]) => {
-          const w = rows[0].weight_kg
-          const reps = rows.length > 1 ? rows.sort((x, y) => (x.side ?? '').localeCompare(y.side ?? '')).map((r) => r.reps ?? '–').join('/') : (rows[0].reps ?? '–')
-          return `${rows[0].is_warmup ? 'W ' : ''}${w === null ? '' : num(w) + '×'}${reps}`
-        })
-      return { name: e.name, text: parts.join(' · ') }
-    })
-}
-
-function SessionDetail({ id }: { id: string }) {
-  const [state, setState] = useState<{ lines: { name: string; text: string; note?: string }[] } | string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([
-      supabase
-        .from('sets')
-        .select('exercise_id, set_no, side, weight_kg, reps, is_warmup, logged_at, exercises(name, dumbbell_pair, load_type)')
-        .eq('session_id', id)
-        .is('deleted_at', null),
-      supabase.from('session_exercise_notes').select('exercise_id, note, exercises(name)').eq('session_id', id).is('deleted_at', null),
-    ]).then(([sets, notes]) => {
-      if (cancelled) return
-      if (sets.error) return setState(sets.error.message)
-      const lines: { name: string; text: string; note?: string }[] = summarise((sets.data ?? []) as unknown as SetRow[])
-      const noteByName = new Map(
-        ((notes.data ?? []) as unknown as { note: string; exercises: { name: string } }[]).map((n) => [n.exercises.name, n.note]),
-      )
-      setState({ lines: lines.map((l) => ({ ...l, note: noteByName.get(l.name) })) })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  if (state === null) return <p className="muted">Loading…</p>
-  if (typeof state === 'string') return <p className="error">Could not load: {state}</p>
-  return (
-    <div className="detail">
-      {state.lines.map((l) => (
-        <div key={l.name} className="detail-line">
-          <strong>{l.name}</strong>
-          <div>{l.text}</div>
-          {l.note && <div className="muted note">“{l.note}”</div>}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export default function History() {
+  const { push } = useNav()
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [more, setMore] = useState(true)
   const [loading, setLoading] = useState(false)
   const [offline, setOffline] = useState(false)
-  const [open, setOpen] = useState<string | null>(null)
   const waiting = useLiveQuery(() => db.workouts.filter((w) => !!w.endedAt && !w.syncedAt).toArray(), [])
 
   const loadPage = useCallback(async (from: number) => {
@@ -159,15 +80,12 @@ export default function History() {
         .map((s) => {
           const mins = minutes(s.started_at, s.ended_at)
           return (
-            <div className="card session" key={s.id}>
-              <button className="session-head" onClick={() => setOpen(open === s.id ? null : s.id)} aria-expanded={open === s.id}>
-                <span className="routine-title">{s.title}</span>
-                <span className="muted">
-                  {formatDate(s.started_at)} · {s.set_count} sets{mins ? ` · ${mins} min` : ''}
-                </span>
-              </button>
-              {open === s.id && <SessionDetail id={s.id} />}
-            </div>
+            <button className="card list-item" key={s.id} onClick={() => push({ type: 'session', id: s.id })}>
+              <span className="routine-title">{s.title}</span>
+              <span className="muted">
+                {formatDate(s.started_at)} · {s.set_count} sets{mins ? ` · ${mins} min` : ''}
+              </span>
+            </button>
           )
         })}
 
