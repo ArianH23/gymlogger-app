@@ -141,10 +141,10 @@ select is(pg_temp.mins('lr'), array[20, 20, 16], 'left/right: lower of L and R d
 
 -- Plan bookkeeping
 select is((select count(*) from public.planned_sets ps join public.planned_sessions p on p.id = ps.planned_session_id
-           where p.created_by = 'rules' and p.status = 'pending'), 36::bigint, '12 exercises x target_sets 3');
-select is((select count(*) from public.planned_sessions where created_by = 'rules' and status = 'pending'), 1::bigint,
+           where p.routine_id = '00000000-0000-0000-0000-0000000000b1' and p.created_by = 'rules' and p.status = 'pending'), 36::bigint, '12 exercises x target_sets 3');
+select is((select count(*) from public.planned_sessions where routine_id = '00000000-0000-0000-0000-0000000000b1' and created_by = 'rules' and status = 'pending'), 1::bigint,
           'only one pending rules plan');
-select is((select count(*) from public.planned_sessions where created_by = 'rules' and status = 'superseded'), 1::bigint,
+select is((select count(*) from public.planned_sessions where routine_id = '00000000-0000-0000-0000-0000000000b1' and created_by = 'rules' and status = 'superseded'), 1::bigint,
           'older rules plan superseded');
 select is((select status from public.planned_sessions where id = '00000000-0000-0000-0000-0000000000c1'), 'pending',
           'claude plan untouched by generate_plan');

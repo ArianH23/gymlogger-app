@@ -7,3 +7,6 @@ __pycache__/
 .venv/
 supabase/.temp/
 !importer/exercises.csv
+# personal body data and the prompt built from it
+docs/goal.md
+docs/scheduled_task_prompt.md

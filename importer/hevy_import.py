@@ -4,7 +4,8 @@ Usage (from the importer/ folder):
     python hevy_import.py --user-id <auth user uuid>            # dry run: prints counts only
     python hevy_import.py --user-id <auth user uuid> --apply    # writes to Supabase
 
-Reads SUPABASE_URL and SUPABASE_SERVICE_KEY from importer/.env (git-ignored) or the environment.
+Reads SUPABASE_URL and SUPABASE_SERVICE_KEY from importer/.env (or the file given with --env-file; both
+git-ignored) or from the environment.
 The service-role key is only ever used here, never in the app.
 Re-running is safe: every id is derived from the data, and every write is an upsert.
 """
@@ -218,7 +219,9 @@ class RestClient:
     def __init__(self, url, key):
         import requests
         self.base, self.http = url.rstrip("/") + "/rest/v1", requests.Session()
-        self.http.headers.update({"apikey": key, "Authorization": f"Bearer {key}"})
+        self.http.headers["apikey"] = key
+        if not key.startswith("sb_"):   # new-style secret keys go in apikey only; legacy JWT keys also as bearer
+            self.http.headers["Authorization"] = f"Bearer {key}"
 
     def upsert(self, table, rows, on_conflict, ignore_duplicates=False):
         prefer = ("resolution=ignore-duplicates" if ignore_duplicates else "resolution=merge-duplicates")
@@ -277,6 +280,7 @@ def main():
     ap.add_argument("--csv", default=here.parent / "data" / "workout_data.csv")
     ap.add_argument("--catalog", default=here / "exercises.csv")
     ap.add_argument("--user-id", default="00000000-0000-0000-0000-000000000000")
+    ap.add_argument("--env-file", default=here / ".env", help="file with SUPABASE_URL and SUPABASE_SERVICE_KEY")
     ap.add_argument("--apply", action="store_true", help="write to Supabase (default is a dry run)")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
@@ -286,9 +290,12 @@ def main():
     if not args.apply:
         print("\nDry run: nothing was written. Add --apply to import.")
         return
-    load_env(here / ".env")
+    load_env(args.env_file)
     if args.user_id.startswith("00000000"):
         sys.exit("--apply needs your real --user-id (the id of your Supabase auth user)")
+    if os.environ.get("SUPABASE_SERVICE_KEY", "PASTE").startswith("PASTE"):
+        sys.exit(f"Put your secret key in {args.env_file} first.")
+    print(f"\nWriting to {os.environ['SUPABASE_URL']} ...")
     upload(result, RestClient(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"]), args.user_id)
     print("\nImport finished.")
 
