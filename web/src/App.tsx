@@ -22,11 +22,26 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'body', label: 'Body' },
 ]
 
+/** "12 min", "1 h 05" */
+function elapsed(startedAt: string, now: number) {
+  const m = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 60000))
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`
+}
+
 function Shell() {
   const { stack, popToRoot, openWorkoutId: openWorkout, setOpenWorkoutId: setOpenWorkout } = useNav()
   const [session, setSession] = useState<Session | null | undefined>(undefined) // undefined = still checking
   const [tab, setTab] = useState<Tab>('routines')
   const unfinished = useLiveQuery(() => db.workouts.filter((w) => !w.endedAt).first(), []) // the one open workout, if any
+  const unfinishedId = unfinished?.id
+  const unfinishedSets = useLiveQuery(() => (unfinishedId ? db.sets.where('sessionId').equals(unfinishedId).count() : 0), [unfinishedId])
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!unfinishedId) return
+    setNow(Date.now())
+    const t = setInterval(() => setNow(Date.now()), 30000) // keeps the elapsed time on the pill current
+    return () => clearInterval(t)
+  }, [unfinishedId])
 
   // Reopening the app mid-workout takes you straight back to it.
   useEffect(() => {
@@ -64,7 +79,10 @@ function Shell() {
           popToRoot() // close any pages on top, so the workout is what you see
         }}
       >
-        ‹ Back to {unfinished.title}
+        <span>‹ Back to {unfinished.title}</span>
+        <small>
+          {unfinishedSets ?? 0} {unfinishedSets === 1 ? 'set' : 'sets'} · {elapsed(unfinished.startedAt, now)}
+        </small>
       </button>
     ) : null
 
