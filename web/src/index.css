@@ -1,0 +1,74 @@
+:root {
+  --bg: #0f1115;
+  --surface: #181b22;
+  --surface-2: #222733;
+  --text: #eef0f4;
+  --muted: #8d94a5;
+  --accent: #4cc38a;
+  --nav-height: 72px;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 18px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px calc(var(--nav-height) + 20px);
+}
+
+.screen h1 { margin: 0 0 16px; font-size: 28px; }
+
+.card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+.muted { color: var(--muted); }
+
+/* Bottom navigation: big targets, reachable with one thumb. */
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  background: var(--surface);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-inner { display: flex; width: 100%; max-width: 560px; }
+
+.nav button {
+  flex: 1;
+  height: var(--nav-height);
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nav button[aria-current='page'] { color: var(--accent); }
