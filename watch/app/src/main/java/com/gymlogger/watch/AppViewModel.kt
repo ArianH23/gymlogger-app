@@ -1,11 +1,11 @@
 package com.gymlogger.watch
 
 import android.app.Application
-import android.content.Context
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -14,20 +14,31 @@ import com.gymlogger.watch.data.Api
 import com.gymlogger.watch.data.LoggedSet
 import com.gymlogger.watch.data.PairResult
 import com.gymlogger.watch.data.PlanExercise
-import com.gymlogger.watch.data.Row
 import com.gymlogger.watch.data.RoutineItem
+import com.gymlogger.watch.data.Row
+import com.gymlogger.watch.data.Sent
 import com.gymlogger.watch.data.Workout
 import com.gymlogger.watch.data.WorkoutStore
+import com.gymlogger.watch.data.adoptRemote
 import com.gymlogger.watch.data.exercise
+import com.gymlogger.watch.data.liveChanged
 import com.gymlogger.watch.data.loggedAt
+import com.gymlogger.watch.data.openWorkout
 import com.gymlogger.watch.data.planSet
+import com.gymlogger.watch.data.reconcile
 import com.gymlogger.watch.data.restSeconds
 import com.gymlogger.watch.data.routines
+import com.gymlogger.watch.data.syncDiscard
+import com.gymlogger.watch.data.syncPayload
+import com.gymlogger.watch.data.syncWorkout
 import com.gymlogger.watch.data.workoutStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.time.Instant
 import java.util.UUID
@@ -36,6 +47,7 @@ import java.util.UUID
 sealed interface Screen {
     data object Routines : Screen
     data object Overview : Screen
+    data object Feeling : Screen // "how did it feel?", on finishing
     data class Exercise(val exerciseId: String) : Screen
     data class Editor(val exerciseId: String, val row: Row) : Screen
 }
@@ -65,10 +77,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var screen by mutableStateOf<Screen>(if (workout != null) Screen.Overview else Screen.Routines)
 
+    /** Finished workouts saved on the watch that the server has not confirmed yet. */
+    var waiting by mutableIntStateOf(store.waitingCount())
+        private set
+
+    /** False while the last sync failed (no signal): everything is still saved on the watch. */
+    var online by mutableStateOf(true)
+        private set
+
     /** When the rest after the last set ends (ms since 1970), shown as a countdown; null when not resting. */
     var restEndsAt by mutableStateOf<Long?>(null)
         private set
     private var restJob: Job? = null
+
+    // All changes to the open workout go through [change], one at a time, so a reply from the server can never
+    // overwrite something just tapped (and the file on the watch is always the latest state).
+    private val lock = Any()
+
+    private fun now() = Instant.now().toString()
+
+    private fun change(f: (Workout) -> Workout?) {
+        synchronized(lock) {
+            val w = workout ?: return
+            val n = f(w) ?: return
+            store.saveOpen(n)
+            workout = n
+        }
+        scheduleSync()
+    }
+
+    // ---- signing in and the routine list
 
     fun pair(code: String) {
         pairBusy = true
@@ -105,14 +143,111 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         signedIn = false
     }
 
-    // ---- the workout
+    // ---- sharing the workout with the phone (the server merges; see Sync.kt)
 
-    private fun update(w: Workout) {
-        store.saveOpen(w) // on disk before anything else, so nothing logged can be lost
-        workout = w
+    private val syncMutex = Mutex()
+    private var syncAgain = false
+    private var syncJob: Job? = null
+
+    /** Syncs shortly from now, so several taps in a row become one call. */
+    fun scheduleSync(delayMs: Long = 600) {
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch { delay(delayMs); syncNow() }
     }
 
-    /** Starts a workout on a routine. Only one can be open at a time: with one open, this just returns to it. */
+    /** Syncs everything now: discards, finished workouts, the open workout (or one started on the phone). */
+    suspend fun syncNow() {
+        if (!signedIn) return
+        if (!syncMutex.tryLock()) { // already running: it will go round once more
+            syncAgain = true
+            return
+        }
+        try {
+            withContext(Dispatchers.IO) {
+                do {
+                    syncAgain = false
+                    syncOnce()
+                } while (syncAgain)
+            }
+            online = true
+        } catch (e: Api.SignedOut) {
+            signedIn = false
+        } catch (e: Exception) {
+            online = false // no signal or a server error: everything stays saved here and goes out next time
+        } finally {
+            syncMutex.unlock()
+        }
+    }
+
+    private fun syncOnce() {
+        for (id in store.discardIds()) {
+            api.syncDiscard(id)
+            store.removeDiscard(id)
+        }
+        for (w in store.waitingWorkouts()) {
+            api.syncWorkout(w.syncPayload(sendLive = false)) // finished (or already gone): either way the server has dealt with it
+            store.removeWaiting(w.id)
+        }
+        waiting = store.waitingCount()
+
+        val open = workout
+        if (open == null) {
+            val remote = api.openWorkout() ?: return
+            val adopted = adoptRemote(remote) ?: return
+            synchronized(lock) {
+                if (workout == null) { // (still nothing open here)
+                    store.saveOpen(adopted)
+                    workout = adopted
+                }
+            }
+        } else if (!open.detached) {
+            syncOpen(open)
+        }
+    }
+
+    private fun syncOpen(w: Workout) {
+        val sent = Sent(w.sets.map { it.id }.toSet(), w.deletedSetIds, w.liveRev, sentLive = w.liveChanged())
+        val result = api.syncWorkout(w.syncPayload(sent.sentLive))
+        synchronized(lock) {
+            val cur = workout
+            if (cur == null || cur.id != w.id) return
+            when (result.status) {
+                "deleted" -> dropOpen() // thrown away on another device
+                "other_open" -> {
+                    // A different workout is already open on the phone. If this one is still empty, switch to that one.
+                    if (cur.sets.isEmpty()) {
+                        dropOpen()
+                        result.workout?.let { adoptRemote(it) }?.let { store.saveOpen(it); workout = it }
+                    } else {
+                        val n = cur.copy(detached = true)
+                        store.saveOpen(n)
+                        workout = n
+                    }
+                }
+                else -> {
+                    val server = result.workout ?: return
+                    val r = reconcile(cur, server, sent, now())
+                    if (cur.endedAt == null && r.endedAt != null) dropOpen() // finished on the phone
+                    else {
+                        store.saveOpen(r)
+                        workout = r
+                    }
+                }
+            }
+        }
+    }
+
+    /** Closes the open workout here (it was finished or thrown away elsewhere). */
+    private fun dropOpen() {
+        store.clearOpen()
+        cancelRest()
+        workout = null
+        screen = Screen.Routines
+    }
+
+    // ---- the workout
+
+    /** Starts a workout on a routine. Only one can be open at a time, here or on the phone. */
     fun start(routine: RoutineItem) {
         if (workout != null) {
             screen = Screen.Overview
@@ -122,17 +257,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         routinesError = null
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val plan = api.workoutStart(routine.id)
-                update(
-                    Workout(
-                        id = UUID.randomUUID().toString(),
-                        routineId = routine.id,
-                        title = plan.routineName,
-                        startedAt = Instant.now().toString(),
-                        plan = plan.exercises,
-                    ),
-                )
-                screen = Screen.Overview
+                withTimeoutOrNull(4000) { syncNow() } // look first for a workout open on the phone: it is picked up here
+                if (workout != null) {
+                    screen = Screen.Overview
+                } else {
+                    val plan = api.workoutStart(routine.id)
+                    synchronized(lock) {
+                        val w = Workout(
+                            id = UUID.randomUUID().toString(),
+                            routineId = routine.id,
+                            title = plan.routineName,
+                            startedAt = now(),
+                            plan = plan.exercises,
+                            liveRev = 1,
+                        )
+                        store.saveOpen(w)
+                        workout = w
+                    }
+                    screen = Screen.Overview
+                    scheduleSync(0)
+                }
             } catch (e: Api.SignedOut) {
                 signedIn = false
             } catch (e: IOException) {
@@ -144,65 +288,74 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Logs (or, for a row that already has a set, replaces) one set. Returns false if there was nothing to log. */
+    /** Logs (or, for a row that already has a set, changes) one set. */
     fun logSet(ex: PlanExercise, row: Row, weight: Double?, reps: Int) {
-        val w = workout ?: return
-        val existing = w.loggedAt(ex, row)
-        val set = LoggedSet(
-            id = existing?.id ?: UUID.randomUUID().toString(),
-            exerciseId = ex.exerciseId,
-            setNo = row.setNo,
-            side = row.side,
-            weightKg = weight,
-            reps = reps,
-            loggedAt = existing?.loggedAt ?: Instant.now().toString(),
-        )
-        update(w.copy(sets = w.sets.filter { it.id != set.id } + set))
-        // Rest starts once the whole set is done (for left/right: after both sides), only for a new set.
-        val other = if (row.side == "L") "R" else if (row.side == "R") "L" else null
-        val complete = other == null || w.loggedAt(ex, Row(row.setNo, other)) != null
-        if (existing == null && complete) startRest(restSeconds(ex.planSet(row.setNo)?.targetRepsMax))
+        var startRest = false
+        change { w ->
+            val existing = w.loggedAt(ex, row)
+            val set = LoggedSet(
+                id = existing?.id ?: UUID.randomUUID().toString(),
+                exerciseId = ex.exerciseId,
+                setNo = row.setNo,
+                side = row.side,
+                weightKg = weight,
+                reps = reps,
+                loggedAt = now(), // a change counts as a newer log, so it wins when the sets are merged
+                synced = false,
+            )
+            // Rest starts once the whole set is done (for left/right: after both sides), only for a new set.
+            val other = if (row.side == "L") "R" else if (row.side == "R") "L" else null
+            startRest = existing == null && (other == null || w.loggedAt(ex, Row(row.setNo, other)) != null)
+            w.copy(sets = w.sets.filter { it.id != set.id } + set)
+        }
+        if (startRest) startRest(restSeconds(ex.planSet(row.setNo)?.targetRepsMax))
     }
 
     /** Deletes what was logged for a row (the row stays, empty). */
     fun deleteLogged(ex: PlanExercise, row: Row) {
-        val w = workout ?: return
-        val existing = w.loggedAt(ex, row) ?: return
-        update(w.copy(sets = w.sets.filter { it.id != existing.id }))
+        change { w ->
+            val existing = w.loggedAt(ex, row) ?: return@change null
+            w.copy(sets = w.sets.filter { it.id != existing.id }, deletedSetIds = w.deletedSetIds + existing.id)
+        }
     }
 
     /** Takes an empty row off the list (both sides of a left/right set). */
     fun removeRow(ex: PlanExercise, row: Row) {
-        val w = workout ?: return
-        if (w.sets.any { it.exerciseId == ex.exerciseId && it.setNo == row.setNo }) return // something is logged: delete that first
-        val extra = w.extraSets[ex.exerciseId] ?: 0
-        val planned = ex.sets.map { it.setNo }
-        val isLastExtra = extra > 0 && row.setNo == (planned.maxOrNull() ?: 0) + extra
-        update(
-            if (isLastExtra) w.copy(extraSets = w.extraSets + (ex.exerciseId to extra - 1))
-            else w.copy(removedSets = w.removedSets + (ex.exerciseId to (w.removedSets[ex.exerciseId].orEmpty() + row.setNo))),
-        )
+        change { w ->
+            if (w.sets.any { it.exerciseId == ex.exerciseId && it.setNo == row.setNo }) return@change null // something is logged: delete that first
+            val extra = w.extraSets[ex.exerciseId] ?: 0
+            val planned = ex.sets.map { it.setNo }
+            val isLastExtra = extra > 0 && row.setNo == (planned.maxOrNull() ?: 0) + extra
+            if (isLastExtra) w.copy(extraSets = w.extraSets + (ex.exerciseId to extra - 1), liveRev = w.liveRev + 1)
+            else w.copy(removedSets = w.removedSets + (ex.exerciseId to (w.removedSets[ex.exerciseId].orEmpty() + row.setNo)), liveRev = w.liveRev + 1)
+        }
     }
 
     fun addSet(ex: PlanExercise) {
-        val w = workout ?: return
-        update(w.copy(extraSets = w.extraSets + (ex.exerciseId to (w.extraSets[ex.exerciseId] ?: 0) + 1)))
+        change { w -> w.copy(extraSets = w.extraSets + (ex.exerciseId to (w.extraSets[ex.exerciseId] ?: 0) + 1), liveRev = w.liveRev + 1) }
     }
 
-    /** Ends the workout and puts it in the upload queue (uploading comes in the next step). */
-    fun finish() {
-        val w = workout ?: return
-        store.queueForUpload(w.copy(endedAt = Instant.now().toString()))
-        cancelRest()
-        workout = null
-        screen = Screen.Routines
+    /** Ends the workout (with how it felt, 1 to 5, or null) and queues it for the server. It stays saved here until the server confirms. */
+    fun finish(feeling: Int?) {
+        synchronized(lock) {
+            val w = workout ?: return
+            store.queueForUpload(w.copy(endedAt = now(), feeling = feeling))
+            cancelRest()
+            workout = null
+            screen = Screen.Routines
+        }
+        waiting = store.waitingCount()
+        scheduleSync(0)
     }
 
+    /** Throws the workout away here and, as soon as there is signal, everywhere. */
     fun discard() {
-        store.clearOpen()
-        cancelRest()
-        workout = null
-        screen = Screen.Routines
+        synchronized(lock) {
+            val w = workout ?: return
+            store.addDiscard(w.id)
+            dropOpen()
+        }
+        scheduleSync(0)
     }
 
     fun exercise(id: String): PlanExercise? = workout?.exercise(id)
@@ -212,6 +365,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         screen = when (val s = screen) {
             Screen.Routines -> return false
             Screen.Overview -> Screen.Routines
+            Screen.Feeling -> Screen.Overview
             is Screen.Exercise -> Screen.Overview
             is Screen.Editor -> Screen.Exercise(s.exerciseId)
         }

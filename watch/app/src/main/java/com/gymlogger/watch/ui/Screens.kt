@@ -73,12 +73,14 @@ fun RoutinesScreen(
     error: String?,
     openTitle: String?,
     startingId: String?,
+    waiting: Int,
     onRetry: () -> Unit,
     onStart: (RoutineItem) -> Unit,
     onResume: () -> Unit,
 ) {
     ScalingLazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         item { ListHeader { Text("Routines") } }
+        if (waiting > 0) item { Text("$waiting waiting to upload", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (openTitle != null) {
             item { Button(onClick = onResume, modifier = Modifier.fillMaxWidth(), label = { Text("Resume") }, secondaryLabel = { Text(openTitle) }) }
         }

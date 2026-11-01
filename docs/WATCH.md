@@ -44,21 +44,34 @@ Everything that is "logic" already lives in the database, so the watch only has 
 this, including that sending the same sets twice creates no duplicates. It passes. Run it any time:
 `importer/.venv/Scripts/python scripts/watch_api_check.py --email <email> --password <password>`.
 
-## The calls the watch would make (REST, all with `apikey: <publishable key>` and `Authorization: Bearer <token>`)
+## The calls the watch makes (REST, all with `apikey: <publishable key>` and `Authorization: Bearer <token>`)
 
 ```
-POST /auth/v1/token?grant_type=password        {"email", "password"}         -> access_token, refresh_token   (once)
-POST /auth/v1/token?grant_type=refresh_token   {"refresh_token"}             -> a new access_token            (when it expires)
+POST /functions/v1/watch-pair                  {"code": "123456"}            -> access_token, refresh_token      (once, to pair)
+POST /auth/v1/token?grant_type=refresh_token   {"refresh_token"}             -> a new access_token               (when it expires)
 GET  /rest/v1/routine_status?select=routine_id,name,is_next,last_started_at&order=position
-POST /rest/v1/rpc/workout_start                {"p_routine_id": "..."}       -> routine, plan_by, exercises[sets, last]
-POST /rest/v1/sessions?on_conflict=id          Prefer: resolution=merge-duplicates   (id, routine_id, title, started_at, ended_at, source = "app")
-POST /rest/v1/sets?on_conflict=id              Prefer: resolution=merge-duplicates   (id, session_id, exercise_id, set_no, side, weight_kg, reps, is_warmup, logged_at)
-POST /rest/v1/rpc/finish_session               {"p_session_id": "..."}
+POST /rest/v1/rpc/workout_start                {"p_routine_id": "..."}       -> routine, plan_by, exercises[sets, last, increment_kg]
+POST /rest/v1/rpc/sync_workout                 {"p_workout": {...}}          -> {status, workout}   (start, log, delete, finish, discard)
+POST /rest/v1/rpc/open_workout                 {}                            -> the workout open on any device, or null
 ```
 
-Rules the phone already follows and the watch must too: every id is a UUID created on the client; every write is
-an upsert (so a retry is harmless); upload the session, then its sets, **then** call `finish_session`; weights for
-two-dumbbell exercises are the pair total; left/right sets are two rows with `side` `L` and `R`.
+## Sharing the workout in progress with the phone
+
+The workout you are doing lives in the database, so you can start on the watch and carry on on the phone (or the other way
+round). One database function, `sync_workout`, does all the merging; the phone and the watch only send their view of the
+workout and adopt the answer. The rules (all in `supabase/migrations/..._live_workout.sql`, with tests):
+
+- **One open workout per user.** Starting a second one returns the open one instead (`other_open`).
+- **The same set from two devices is one row:** the newer log wins and the row keeps its first id.
+- **A deleted set stays deleted**, even if another device still has it and sends it again.
+- **The plan layout** (exercises, added and removed sets) is last-writer-wins.
+- **Finishing** saves the feeling, marks the plan used and makes the next plan, exactly as before. A finished or discarded
+  workout disappears from the other device within a few seconds.
+- **No signal:** everything is saved on the device first (a JSON file on the watch, IndexedDB on the phone) and goes out when
+  the connection is back. Starting a workout with no signal cannot know about one open elsewhere; if both end up open, the
+  second is kept apart and uploads when it is finished.
+
+Both devices ask every 6 seconds while their app is on screen, and straight after you change something.
 
 ## Signing in on a watch
 

@@ -76,11 +76,12 @@ fun RestChip(endsAt: Long?) {
 
 /** The exercises of the open workout, with how many sets of each are done. */
 @Composable
-fun OverviewScreen(workout: Workout, restEndsAt: Long?, onOpen: (PlanExercise) -> Unit, onFinish: () -> Unit, onDiscard: () -> Unit) {
+fun OverviewScreen(workout: Workout, restEndsAt: Long?, online: Boolean, onOpen: (PlanExercise) -> Unit, onFinish: () -> Unit, onDiscard: () -> Unit) {
     var confirmDiscard by remember { mutableStateOf(false) }
     ScalingLazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         item { ListHeader { Text(workout.title) } }
         item { RestChip(restEndsAt) }
+        if (!online) item { Text("Offline: saved on the watch", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         val current = workout.plan.firstOrNull { workout.progress(it).let { (d, t) -> d < t } }
         items(workout.plan) { ex ->
             val (done, total) = workout.progress(ex)
@@ -205,5 +206,37 @@ private fun androidx.wear.compose.material3.PickerScope.WheelNumber(text: String
             style = MaterialTheme.typography.numeralSmall,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+private val FEELINGS = listOf("Awful", "Rough", "Normal", "Good", "Great")
+
+/** Shown when you finish: how did the session feel, 1 to 5 (optional). Claude reads it next to the score when planning. */
+@Composable
+fun FeelingScreen(onDone: (Int?) -> Unit) {
+    val wheel = rememberPickerState(initialNumberOfOptions = FEELINGS.size, initiallySelectedIndex = 2, shouldRepeatOptions = false)
+    Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("How did it feel?", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        PickerGroup(selectedPickerState = wheel, autoCenter = false, modifier = Modifier.weight(1f).padding(vertical = 2.dp)) {
+            PickerGroupItem(
+                pickerState = wheel,
+                selected = true,
+                onSelected = {},
+                contentDescription = { "Feeling from 1 to 5" },
+                option = { index, selected ->
+                    Box(Modifier.height(36.dp).width(130.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            "${index + 1} · ${FEELINGS[index]}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+            )
+        }
+        LayoutRow(Modifier.height(42.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Button(onClick = { onDone(wheel.selectedOptionIndex + 1) }, modifier = Modifier.width(86.dp).height(42.dp)) { Text("Finish") }
+            FilledTonalButton(onClick = { onDone(null) }, modifier = Modifier.width(66.dp).height(42.dp)) { Text("Skip") }
+        }
     }
 }

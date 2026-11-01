@@ -55,6 +55,7 @@ data class LoggedSet(
     val weightKg: Double? = null,
     val reps: Int,
     val loggedAt: String,
+    val synced: Boolean = false, // true once the server has this set (and it matches)
 )
 
 @Serializable
@@ -69,4 +70,47 @@ data class Workout(
     val removedSets: Map<String, List<Int>> = emptyMap(), // exerciseId -> set numbers taken off the list
     val sets: List<LoggedSet> = emptyList(),
     val feeling: Int? = null,
+    // Sharing the open workout with the phone (see Sync.kt and the database function sync_workout):
+    val deletedSetIds: List<String> = emptyList(), // sets deleted here that the server may still have
+    val liveRev: Int = 0, // bumped when the plan layout (extra and removed sets) changes here
+    val liveSyncedRev: Int = 0, // the liveRev the server has seen
+    val liveSeenAt: String? = null, // the server's live_updated_at we last adopted
+    val detached: Boolean = false, // another workout was already open elsewhere: this one uploads when it is finished
+    val syncedAt: String? = null,
 )
+
+/** The plan layout of the open workout, as the server stores it in sessions.live. */
+@Serializable
+data class Live(
+    val plan: List<PlanExercise> = emptyList(),
+    @SerialName("extra_sets") val extraSets: Map<String, Int> = emptyMap(),
+    @SerialName("removed_sets") val removedSets: Map<String, List<Int>> = emptyMap(),
+)
+
+@Serializable
+data class ServerSet(
+    val id: String,
+    @SerialName("exercise_id") val exerciseId: String,
+    @SerialName("set_no") val setNo: Int,
+    val side: String? = null,
+    @SerialName("weight_kg") val weightKg: Double? = null,
+    val reps: Int = 0,
+    @SerialName("logged_at") val loggedAt: String,
+)
+
+@Serializable
+data class ServerWorkout(
+    val id: String,
+    @SerialName("routine_id") val routineId: String? = null,
+    val title: String,
+    @SerialName("started_at") val startedAt: String,
+    @SerialName("ended_at") val endedAt: String? = null,
+    val feeling: Int? = null,
+    val live: Live? = null,
+    @SerialName("live_updated_at") val liveUpdatedAt: String? = null,
+    val sets: List<ServerSet> = emptyList(),
+)
+
+/** The answer of rpc/sync_workout: ok, finished, deleted, or other_open (a different workout is already open). */
+@Serializable
+data class SyncResult(val status: String, val workout: ServerWorkout? = null)

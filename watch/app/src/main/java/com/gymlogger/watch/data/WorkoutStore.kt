@@ -37,4 +37,21 @@ class WorkoutStore(context: Context) {
     }
 
     fun waitingCount(): Int = waiting.listFiles { f -> f.name.endsWith(".json") }?.size ?: 0
+
+    /** Finished workouts that the server has not confirmed yet. */
+    fun waitingWorkouts(): List<Workout> =
+        waiting.listFiles { f -> f.name.endsWith(".json") }.orEmpty().mapNotNull {
+            try { json.decodeFromString<Workout>(it.readText()) } catch (e: Exception) { null }
+        }
+
+    fun removeWaiting(id: String) { File(waiting, "$id.json").delete() }
+
+    // Workouts thrown away here whose deletion still has to reach the server (so the phone drops them too).
+    private val discards = File(context.filesDir, "discards.txt")
+
+    fun discardIds(): List<String> = if (discards.exists()) discards.readLines().filter { it.isNotBlank() } else emptyList()
+
+    fun addDiscard(id: String) { discards.writeText((discardIds() + id).distinct().joinToString("\n")) }
+
+    fun removeDiscard(id: String) { discards.writeText(discardIds().filter { it != id }.joinToString("\n")) }
 }

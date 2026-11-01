@@ -7,6 +7,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.wear.compose.material3.ColorScheme
 import androidx.wear.compose.material3.MaterialTheme
@@ -15,6 +20,7 @@ import com.gymlogger.watch.data.Row
 import com.gymlogger.watch.data.nextOpenRow
 import com.gymlogger.watch.ui.EditorScreen
 import com.gymlogger.watch.ui.ExerciseScreen
+import com.gymlogger.watch.ui.FeelingScreen
 import com.gymlogger.watch.ui.OverviewScreen
 import com.gymlogger.watch.ui.PairScreen
 import com.gymlogger.watch.ui.RoutinesScreen
@@ -28,6 +34,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Keep the watch and the phone in step: now, and every few seconds while the app is on screen.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    vm.syncNow()
+                    delay(6000)
+                }
+            }
+        }
         setContent {
             MaterialTheme(colorScheme = ColorScheme(primary = Accent, onPrimary = OnAccent)) {
                 if (!vm.signedIn) {
@@ -55,6 +70,7 @@ class MainActivity : ComponentActivity() {
                 error = vm.routinesError,
                 openTitle = w?.title,
                 startingId = vm.startingId,
+                waiting = vm.waiting,
                 onRetry = vm::loadRoutines,
                 onStart = vm::start,
                 onResume = { vm.screen = Screen.Overview },
@@ -62,10 +78,12 @@ class MainActivity : ComponentActivity() {
             Screen.Overview -> if (w != null) OverviewScreen(
                 workout = w,
                 restEndsAt = vm.restEndsAt,
+                online = vm.online,
                 onOpen = { ex -> vm.screen = Screen.Exercise(ex.exerciseId) },
-                onFinish = vm::finish,
+                onFinish = { vm.screen = Screen.Feeling },
                 onDiscard = vm::discard,
             )
+            Screen.Feeling -> FeelingScreen(onDone = vm::finish)
             is Screen.Exercise -> {
                 val ex = vm.exercise(s.exerciseId)
                 if (w != null && ex != null) ExerciseScreen(
