@@ -1,0 +1,7 @@
+# Always re-check the app shell and the offline engine, so updates reach the phone.
+/index.html
+  Cache-Control: no-cache
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
