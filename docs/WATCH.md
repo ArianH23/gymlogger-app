@@ -62,9 +62,17 @@ two-dumbbell exercises are the pair total; left/right sets are two rows with `si
 
 ## Signing in on a watch
 
-Typing a password on a watch is awkward but possible (keyboard or voice), and you only do it **once**: the app
-keeps the refresh token on the watch and renews it by itself. That is the plan for version 1. A nicer later option
-is pairing with a short code shown by the phone app (needs a small new database piece).
+No typing: the watch is paired with a **6-digit code** made on the phone.
+
+1. Phone (signed in): "Pair watch" calls `create_watch_pairing()` and shows the code (valid 10 minutes, works once).
+2. Watch: you pick the 6 digits with the wheels.
+3. The watch sends the code to the `watch-pair` Edge Function (`supabase/functions/watch-pair`), which asks the database
+   (`claim_watch_pairing`) and, if the code is good, returns a normal login (access + refresh token). The watch keeps the
+   refresh token and renews it by itself.
+
+A code works once, expires after 10 minutes, only its hash is stored, and every open code dies after 5 wrong guesses
+(so guessing is not practical; the price is that wrong guesses also cancel your own code: make a new one).
+`scripts/watch_pairing_check.py` plays phone and watch over HTTP and checks all of it.
 
 ## Installing it (no Play Store needed)
 
