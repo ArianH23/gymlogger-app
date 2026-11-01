@@ -275,3 +275,12 @@ button.outline { width: 100%; padding: 16px; margin-bottom: 14px; border: 2px so
 .checkin-due { display: flex; flex-direction: column; gap: 4px; width: 100%; border: 2px solid var(--surface-2); color: inherit; text-align: left; font: inherit; cursor: pointer; }
 .table.weeks .table-row { grid-template-columns: 1fr 0.9fr 0.9fr 0.9fr 0.8fr; font-size: 15px; }
 .nav button { font-size: 15px; }
+
+/* Session editor */
+.ex-title.static { cursor: default; }
+.edit-hint { margin: -6px 0 8px; }
+.edit-row { display: grid; grid-template-columns: 38px 1fr 1fr 48px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.edit-row.head { font-size: 13px; margin-bottom: 4px; }
+.edit-row input { margin: 0; padding: 12px 8px; text-align: center; min-width: 0; }
+.edit-row .set-label { text-align: center; }
+.icon-btn { height: 46px; border: 0; border-radius: 10px; background: var(--surface-2); color: #ff7a7a; font-size: 18px; font-weight: 700; cursor: pointer; }

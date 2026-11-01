@@ -10,6 +10,7 @@ export type View =
   | { type: 'routineForm'; id?: string } // no id = new routine
   | { type: 'routine'; id: string }
   | { type: 'checkinForm'; id?: string } // no id = new check-in
+  | { type: 'sessionEdit'; id: string }
 
 type Nav = {
   stack: View[]

@@ -112,7 +112,16 @@ export default function SessionPage({ id }: { id: string }) {
   const mins = s ? duration(s.started_at, s.ended_at) : null
 
   return (
-    <Page title={s?.title ?? 'Session'}>
+    <Page
+      title={s?.title ?? 'Session'}
+      action={
+        data && (
+          <button className="link edit-link" onClick={() => push({ type: 'sessionEdit', id })}>
+            Edit
+          </button>
+        )
+      }
+    >
       {error && <div className="card error">Could not load this session: {error}</div>}
       {!data && !error && <p className="muted">Loading…</p>}
       {offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
@@ -146,9 +155,9 @@ export default function SessionPage({ id }: { id: string }) {
                   <span>{b.loadType === 'assisted' ? 'Assist' : 'Weight'}</span>
                   <span>Reps</span>
                 </div>
-                {b.sets.map((r) => (
+                {b.sets.map((r, i) => (
                   <div className="table-row" key={r.setNo}>
-                    <span>{r.warmup ? 'W' : r.setNo}</span>
+                    <span>{r.warmup ? 'W' : i + 1}</span>
                     <span>{r.weight === null ? '–' : b.dumbbellPair ? `${num(r.weight)} (2×${num(r.weight / 2)})` : num(r.weight)}</span>
                     <span>{r.reps}</span>
                   </div>
