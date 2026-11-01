@@ -119,3 +119,11 @@ export async function getWorkoutPlan(routineId: string): Promise<PlanExercise[]>
 export async function prefetchPlans(routineIds: string[]) {
   await Promise.allSettled(routineIds.map((id) => getWorkoutPlan(id)))
 }
+
+/** Creates the on-phone workout for a routine (with its plan) and returns its id. */
+export async function startRoutineWorkout(routineId: string, title: string): Promise<string> {
+  const plan = await getWorkoutPlan(routineId)
+  const id = crypto.randomUUID()
+  await db.workouts.add({ id, routineId, title, startedAt: new Date().toISOString(), endedAt: null, plan, extraSets: {} })
+  return id
+}

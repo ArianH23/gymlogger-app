@@ -2,51 +2,38 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
-import { getWorkoutPlan, prefetchPlans } from '../lib/workoutPlan'
+import { prefetchPlans, startRoutineWorkout } from '../lib/workoutPlan'
 import { syncPending } from '../lib/sync'
 import { useNav } from '../lib/nav'
+import { daysAgo } from '../lib/format'
 
 type RoutineCard = {
   id: string
   name: string
   exerciseCount: number
   lastSession: string | null
+  isNext: boolean
   plan: 'claude' | 'rules' | null
 }
 
-function formatDay(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-}
-
 async function loadRoutines(): Promise<RoutineCard[]> {
-  const [routines, sessions, plans] = await Promise.all([
-    supabase
-      .from('routines')
-      .select('id, name, routine_exercises(count)')
-      .is('deleted_at', null)
-      .order('position'),
-    supabase
-      .from('sessions')
-      .select('routine_id, started_at')
-      .not('routine_id', 'is', null)
-      .is('deleted_at', null)
-      .order('started_at', { ascending: false })
-      .limit(200),
+  const [routines, status, plans] = await Promise.all([
+    supabase.from('routines').select('id, name, routine_exercises(count)').is('deleted_at', null).order('position'),
+    // routine_status says when each routine was last done and which one is next (the one done longest ago)
+    supabase.from('routine_status').select('routine_id, last_started_at, is_next'),
     supabase.from('current_plan').select('routine_id, created_by'),
   ])
-  for (const r of [routines, sessions, plans]) if (r.error) throw r.error
+  for (const r of [routines, status, plans]) if (r.error) throw r.error
 
-  const lastByRoutine = new Map<string, string>()
-  for (const s of sessions.data ?? []) {
-    if (s.routine_id && !lastByRoutine.has(s.routine_id)) lastByRoutine.set(s.routine_id, s.started_at)
-  }
+  const statusBy = new Map((status.data ?? []).map((s) => [s.routine_id as string, s]))
   const planByRoutine = new Map((plans.data ?? []).map((p) => [p.routine_id, p.created_by as 'claude' | 'rules']))
 
   return (routines.data ?? []).map((r) => ({
     id: r.id,
     name: r.name,
     exerciseCount: r.routine_exercises[0]?.count ?? 0,
-    lastSession: lastByRoutine.get(r.id) ?? null,
+    lastSession: (statusBy.get(r.id)?.last_started_at as string | null) ?? null,
+    isNext: !!statusBy.get(r.id)?.is_next,
     plan: planByRoutine.get(r.id) ?? null,
   }))
 }
@@ -86,18 +73,7 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
     setStarting(r.id)
     setError(null)
     try {
-      const plan = await getWorkoutPlan(r.id)
-      const id = crypto.randomUUID()
-      await db.workouts.add({
-        id,
-        routineId: r.id,
-        title: r.name,
-        startedAt: new Date().toISOString(),
-        endedAt: null,
-        plan,
-        extraSets: {},
-      })
-      onOpen(id)
+      onOpen(await startRoutineWorkout(r.id, r.name))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -129,6 +105,8 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
     }
   }, [])
 
+  const emptyOpen = inProgress?.find((w) => w.routineId === null)
+
   return (
     <>
       <div className="title-row">
@@ -149,36 +127,34 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
           </button>
         </div>
       )}
-      {(() => {
-        const emptyOpen = inProgress?.find((w) => w.routineId === null)
-        return (
-          <button className="outline" onClick={() => (emptyOpen ? onOpen(emptyOpen.id) : startEmpty())}>
-            {emptyOpen ? `Resume ${emptyOpen.title.toLowerCase()}` : '+ Start empty workout'}
-          </button>
-        )
-      })()}
+      <button className="outline" onClick={() => (emptyOpen ? onOpen(emptyOpen.id) : startEmpty())}>
+        {emptyOpen ? `Resume ${emptyOpen.title.toLowerCase()}` : '+ Start empty workout'}
+      </button>
       {error && <div className="card error">Could not load routines: {error}</div>}
       {!routines && !error && <p className="muted">Loading…</p>}
       {routines?.map((r) => {
         const active = inProgress?.find((w) => w.routineId === r.id)
         return (
-        <div className="card routine" key={r.id}>
-          <div className="routine-head">
-            <div className="routine-title">{r.name}</div>
-            <button className="link edit-link" onClick={() => push({ type: 'routineForm', id: r.id })}>
-              Edit
+          <div className={`card routine${r.isNext ? ' next' : ''}`} key={r.id}>
+            <div className="routine-head">
+              <button className="routine-open" onClick={() => push({ type: 'routine', id: r.id })}>
+                <span className="routine-title">{r.name}</span>
+                <span className="muted">
+                  {r.exerciseCount} exercises · {r.lastSession ? `last done ${daysAgo(r.lastSession)}` : 'not done yet'}
+                </span>
+              </button>
+              <button className="link edit-link" onClick={() => push({ type: 'routineForm', id: r.id })}>
+                Edit
+              </button>
+            </div>
+            <div className="badges">
+              {r.isNext && <span className="badge next-badge">Next up</span>}
+              {r.plan && <span className={`badge ${r.plan}`}>{r.plan === 'claude' ? 'Claude plan ready' : 'Auto plan ready'}</span>}
+            </div>
+            <button className="primary start" disabled={starting !== null} onClick={() => (active ? onOpen(active.id) : start(r))}>
+              {starting === r.id ? 'Loading…' : active ? 'Resume workout' : 'Start workout'}
             </button>
           </div>
-          <div className="muted">
-            {r.exerciseCount} exercises · {r.lastSession ? `last ${formatDay(r.lastSession)}` : 'not done yet'}
-          </div>
-          {r.plan && (
-            <span className={`badge ${r.plan}`}>{r.plan === 'claude' ? 'Claude plan ready' : 'Auto plan ready'}</span>
-          )}
-          <button className="primary start" disabled={starting !== null} onClick={() => (active ? onOpen(active.id) : start(r))}>
-            {starting === r.id ? 'Loading…' : active ? 'Resume workout' : 'Start workout'}
-          </button>
-        </div>
         )
       })}
     </>

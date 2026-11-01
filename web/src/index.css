@@ -249,3 +249,24 @@ button.outline { width: 100%; padding: 16px; margin-bottom: 14px; border: 2px so
 .item-actions { display: flex; gap: 6px; }
 .item-actions button:disabled { opacity: 0.3; }
 .item-actions .danger { color: #ff7a7a; }
+
+/* Routine cards and page */
+.routine.next { border: 2px solid var(--chart); padding: 16px; }
+.routine-open { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 1; padding: 0; background: none; border: 0; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.badges:empty { display: none; }
+.badge.next-badge { background: var(--chart); color: #08140e; margin-top: 0; }
+.note-card { color: var(--muted); font-style: italic; }
+.next-line { display: flex; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--surface-2); font-size: 15px; font-variant-numeric: tabular-nums; }
+.next-line .muted { flex: none; }
+.deltas { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.delta { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: var(--text); }
+.delta i { font-style: normal; font-size: 11px; }
+.delta i.up { color: var(--chart); }
+.delta i.down { color: #e5706e; }
+.delta i.same { color: var(--muted); }
+.stat .delta { margin-top: 4px; }
+.badges + .subtitle { margin-top: 12px; }
+.targets { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.targets span { white-space: nowrap; }
+.badges .badge { margin-top: 0; }

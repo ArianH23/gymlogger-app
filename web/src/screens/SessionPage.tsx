@@ -15,9 +15,9 @@ type SetRow = {
   exercises: { name: string; dumbbell_pair: boolean; load_type: string }
 }
 
-type Session = { id: string; title: string; started_at: string; ended_at: string | null; notes: string | null }
+export type Session = { id: string; title: string; started_at: string; ended_at: string | null; notes: string | null }
 
-type Block = {
+export type Block = {
   exerciseId: string
   name: string
   dumbbellPair: boolean
@@ -27,9 +27,9 @@ type Block = {
   note?: string
 }
 
-type Loaded = { session: Session; blocks: Block[]; sets: number; volume: number }
+export type Loaded = { session: Session; blocks: Block[]; sets: number; volume: number }
 
-async function load(id: string): Promise<Loaded> {
+export async function loadSession(id: string): Promise<Loaded> {
   const [s, sets, notes] = await Promise.all([
     supabase.from('sessions').select('id, title, started_at, ended_at, notes').eq('id', id).single(),
     supabase
@@ -76,7 +76,7 @@ async function load(id: string): Promise<Loaded> {
   return { session: s.data as Session, blocks, sets: setCount, volume }
 }
 
-function duration(a: string, b: string | null) {
+export function duration(a: string, b: string | null) {
   if (!b) return null
   const m = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000)
   return m > 0 && m < 600 ? `${m} min` : null
@@ -90,7 +90,7 @@ export default function SessionPage({ id }: { id: string }) {
 
   useEffect(() => {
     const key = `gl_session_${id}`
-    load(id)
+    loadSession(id)
       .then((d) => {
         setData(d)
         try {

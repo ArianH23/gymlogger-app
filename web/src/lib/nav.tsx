@@ -8,13 +8,24 @@ export type View =
   | { type: 'session'; id: string }
   | { type: 'exerciseForm'; id?: string } // no id = new exercise
   | { type: 'routineForm'; id?: string } // no id = new routine
+  | { type: 'routine'; id: string }
 
-type Nav = { stack: View[]; push: (v: View) => void; back: () => void }
+type Nav = {
+  stack: View[]
+  push: (v: View) => void
+  back: () => void
+  /** go back to the tabs, closing every page that is open */
+  popToRoot: () => void
+  /** the workout currently open on screen (kept here so any page can start one) */
+  openWorkoutId: string | null
+  setOpenWorkoutId: (id: string | null) => void
+}
 
 const NavContext = createContext<Nav | null>(null)
 
 export function NavProvider({ children }: { children: ReactNode }) {
   const [stack, setStack] = useState<View[]>([])
+  const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(null)
 
   useEffect(() => {
     history.replaceState({ depth: 0 }, '')
@@ -38,8 +49,14 @@ export function NavProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const back = useCallback(() => history.back(), [])
+  const popToRoot = useCallback(() => {
+    if (stackRef.current.length > 0) history.go(-stackRef.current.length)
+  }, [])
 
-  const value = useMemo(() => ({ stack, push, back }), [stack, push, back])
+  const value = useMemo(
+    () => ({ stack, push, back, popToRoot, openWorkoutId, setOpenWorkoutId }),
+    [stack, push, back, popToRoot, openWorkoutId],
+  )
   return <NavContext.Provider value={value}>{children}</NavContext.Provider>
 }
 

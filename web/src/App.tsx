@@ -20,10 +20,9 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 function Shell() {
-  const { stack } = useNav()
+  const { stack, openWorkoutId: openWorkout, setOpenWorkoutId: setOpenWorkout } = useNav()
   const [session, setSession] = useState<Session | null | undefined>(undefined) // undefined = still checking
   const [tab, setTab] = useState<Tab>('routines')
-  const [openWorkout, setOpenWorkout] = useState<string | null>(null)
 
   // Reopening the app mid-workout takes you straight back to it.
   useEffect(() => {

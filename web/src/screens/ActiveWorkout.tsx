@@ -9,28 +9,12 @@ import ExercisePicker from '../components/ExercisePicker'
 import SaveRoutineSheet from '../components/SaveRoutineSheet'
 import { createRoutine, suggestRoutineName } from '../lib/routines'
 import type { ExerciseRow } from '../lib/exerciseList'
+import { num, targetText } from '../lib/format'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
 
 const rowKey = (exerciseId: string, setNo: number, side: Side) => `${exerciseId}|${setNo}|${side ?? ''}`
-const num = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(Number(n.toFixed(2))))
-
-/** "24 kg (2×12)" for dumbbell pairs, "40 kg" otherwise. */
-function kgText(weight: number | null, ex: PlanExercise) {
-  if (weight === null) return 'bodyweight'
-  if (ex.loadType === 'assisted') return `${num(weight)} kg assist`
-  return ex.dumbbellPair ? `${num(weight)} kg (2×${num(weight / 2)})` : `${num(weight)} kg`
-}
-
-function targetText(set: PlanSet | undefined, ex: PlanExercise) {
-  if (!set) return ''
-  const reps =
-    set.repsMin === null ? '' : set.repsMax === null || set.repsMax === set.repsMin ? `${set.repsMin}` : `${set.repsMin}-${set.repsMax}`
-  const weight = set.weightKg === null ? '' : kgText(set.weightKg, ex)
-  return [weight, reps && `× ${reps}`].filter(Boolean).join(' ')
-}
-
 function lastText(ex: PlanExercise, setNo: number, side: Side) {
   const last = ex.last.find((l) => l.setNo === setNo) ?? ex.last[ex.last.length - 1]
   if (!last) return '–'
