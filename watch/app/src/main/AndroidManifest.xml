@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- For the "workout going on" indicator on the watch face -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The rest timer is an alarm: it must go off on time while the watch sleeps (granted at install for timer apps) -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 

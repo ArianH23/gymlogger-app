@@ -1,11 +1,20 @@
 package com.gymlogger.watch
 
+import android.Manifest
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
+import java.time.Instant
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -23,6 +32,7 @@ import com.gymlogger.watch.ui.FeelingScreen
 import com.gymlogger.watch.ui.OverviewScreen
 import com.gymlogger.watch.ui.PairScreen
 import com.gymlogger.watch.ui.RestScreen
+import com.gymlogger.watch.ui.WorkoutClock
 import com.gymlogger.watch.ui.RoutinesScreen
 
 // The phone app's green on near-black, so the watch looks like the same app.
@@ -31,6 +41,11 @@ private val OnAccent = Color(0xFF08140E)
 
 class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
+
+    // Android asks once for permission to show the "workout going on" indicator.
+    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        vm.workout?.let { OngoingWorkout.show(this, it.title, Instant.parse(it.startedAt).toEpochMilli()) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,9 +65,18 @@ class MainActivity : ComponentActivity() {
                 } else {
                     LaunchedEffect(Unit) { vm.loadRoutines() }
                     BackHandler(enabled = vm.screen != Screen.Routines) { vm.back() }
+                    LaunchedEffect(vm.workout != null) {
+                        if (vm.workout != null && !OngoingWorkout.hasPermission(this@MainActivity)) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
                     // When the rest has ended and cleared, leave its screen.
                     LaunchedEffect(vm.restEndsAt) { if (vm.restEndsAt == null && vm.screen is Screen.Rest) vm.back() }
-                    SignedInContent()
+                    Box(Modifier.fillMaxSize()) {
+                        SignedInContent()
+                        // During a workout: the time, and how long it has been going, at the top of every workout screen.
+                        vm.workout?.let { w ->
+                            if (vm.screen != Screen.Routines) WorkoutClock(w.startedAt, Modifier.align(Alignment.TopCenter).padding(top = 5.dp))
+                        }
+                    }
                 }
             }
         }

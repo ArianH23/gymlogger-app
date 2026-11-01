@@ -65,6 +65,7 @@ dependencies {
     implementation("androidx.wear.compose:compose-foundation:1.7.1")
     implementation("androidx.wear.compose:compose-navigation:1.7.1")
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.wear:wear-ongoing:1.1.0") // the "workout going on" indicator on the watch face
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")

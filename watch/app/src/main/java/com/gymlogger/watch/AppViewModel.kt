@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -98,6 +99,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleAlarm() {
         alarmOn = !alarmOn
         prefs.edit().putBoolean("restAlarm", alarmOn).apply()
+    }
+
+    init {
+        // The indicator on the watch face follows the open workout: on while one is open, gone when it ends.
+        viewModelScope.launch {
+            snapshotFlow { workout?.let { Triple(it.id, it.title, it.startedAt) } }.collect { w ->
+                if (w == null) OngoingWorkout.hide(app)
+                else OngoingWorkout.show(app, w.second, Instant.parse(w.third).toEpochMilli())
+            }
+        }
     }
 
     // All changes to the open workout go through [change], one at a time, so a reply from the server can never

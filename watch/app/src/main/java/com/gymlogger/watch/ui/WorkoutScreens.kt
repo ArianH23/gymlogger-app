@@ -56,6 +56,27 @@ private fun mmss(ms: Long): String {
 
 private fun Row.label() = if (side == null) "Set $setNo" else "Set $setNo · $side"
 
+/** The top of the screen during a workout: the time of day, then how long the workout has been going ("19:42 · 24:10"). */
+@Composable
+fun WorkoutClock(startedAt: String, modifier: Modifier = Modifier) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+    val started = remember(startedAt) { java.time.Instant.parse(startedAt).toEpochMilli() }
+    val seconds = ((now - started) / 1000).coerceAtLeast(0)
+    val elapsed = if (seconds >= 3600) "${seconds / 3600}:${(seconds % 3600 / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
+    else "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
+    val time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+    LayoutRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(elapsed, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
 /** Milliseconds left of the rest, updating four times a second; null when not resting. */
 @Composable
 private fun restLeft(endsAt: Long?): Long? {
@@ -215,12 +236,12 @@ fun EditorScreen(
         LayoutRow(Modifier.height(42.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(
                 onClick = { onLog(if (hasWeight) weights[weightWheel.selectedOptionIndex] else null, repsWheel.selectedOptionIndex) },
-                modifier = Modifier.width(86.dp).height(42.dp),
+                modifier = Modifier.width(70.dp).height(42.dp),
             ) { Text(if (logged != null) "Save" else "Log") }
             FilledTonalButton(
                 onClick = if (logged != null) onDelete else onRemove,
-                modifier = Modifier.width(46.dp).height(42.dp),
-            ) { Text("✕") }
+                modifier = Modifier.width(84.dp).height(42.dp),
+            ) { Text(if (logged != null) "Unlog" else "Remove") }
         }
     }
 }
