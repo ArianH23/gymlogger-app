@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -42,9 +43,11 @@ object OngoingWorkout {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
+        // The stopwatch counts from a moment on the "time since boot" clock, not from a calendar time: convert the start.
+        val sinceStartMs = (System.currentTimeMillis() - startedAtMs).coerceAtLeast(0)
         val status = Status.Builder()
             .addTemplate("Workout #time#")
-            .addPart("time", Status.StopwatchPart(startedAtMs))
+            .addPart("time", Status.StopwatchPart(SystemClock.elapsedRealtime() - sinceStartMs))
             .build()
         OngoingActivity.Builder(context, ID, builder)
             .setStaticIcon(R.drawable.ic_workout)
