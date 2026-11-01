@@ -111,5 +111,20 @@ class Api(context: Context) {
         }
     }
 
+    /** POST a JSON body to a REST path (for example "rpc/workout_start") and return the JSON text. Throws IOException. */
+    fun post(path: String, jsonBody: String): String {
+        val access = token() ?: throw SignedOut()
+        val request = Request.Builder()
+            .url("$base/rest/v1/$path")
+            .header("apikey", key)
+            .header("Authorization", "Bearer $access")
+            .post(jsonBody.toRequestBody(jsonType))
+            .build()
+        http.newCall(request).execute().use { r ->
+            if (!r.isSuccessful) throw IOException("Error ${r.code}")
+            return r.body.string()
+        }
+    }
+
     class SignedOut : IOException("Signed out")
 }

@@ -66,10 +66,22 @@ fun PairScreen(busy: Boolean, error: String?, onPair: (String) -> Unit) {
     }
 }
 
+/** The routine list. With a workout open, it comes first as "Resume" and the others cannot be started. */
 @Composable
-fun RoutinesScreen(routines: List<RoutineItem>?, error: String?, onRetry: () -> Unit, onOpen: (RoutineItem) -> Unit) {
+fun RoutinesScreen(
+    routines: List<RoutineItem>?,
+    error: String?,
+    openTitle: String?,
+    startingId: String?,
+    onRetry: () -> Unit,
+    onStart: (RoutineItem) -> Unit,
+    onResume: () -> Unit,
+) {
     ScalingLazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         item { ListHeader { Text("Routines") } }
+        if (openTitle != null) {
+            item { Button(onClick = onResume, modifier = Modifier.fillMaxWidth(), label = { Text("Resume") }, secondaryLabel = { Text(openTitle) }) }
+        }
         when {
             error != null -> {
                 item { Text(error, color = Error, textAlign = TextAlign.Center) }
@@ -77,10 +89,16 @@ fun RoutinesScreen(routines: List<RoutineItem>?, error: String?, onRetry: () -> 
             }
             routines == null -> item { Text("Loading…", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             else -> items(routines) { r ->
-                if (r.isNext) {
-                    Button(onClick = { onOpen(r) }, modifier = Modifier.fillMaxWidth(), label = { Text(r.name) }, secondaryLabel = { Text("Next up") })
+                val enabled = openTitle == null && startingId == null
+                val secondary: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = when {
+                    startingId == r.id -> ({ Text("Loading…") })
+                    r.isNext -> ({ Text("Next up") })
+                    else -> null
+                }
+                if (r.isNext && openTitle == null) {
+                    Button(onClick = { onStart(r) }, enabled = enabled, modifier = Modifier.fillMaxWidth(), label = { Text(r.name) }, secondaryLabel = secondary)
                 } else {
-                    FilledTonalButton(onClick = { onOpen(r) }, modifier = Modifier.fillMaxWidth(), label = { Text(r.name) })
+                    FilledTonalButton(onClick = { onStart(r) }, enabled = enabled, modifier = Modifier.fillMaxWidth(), label = { Text(r.name) }, secondaryLabel = secondary)
                 }
             }
         }
