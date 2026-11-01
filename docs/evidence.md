@@ -52,3 +52,11 @@ so always give timelines as ranges. With a sample snapshot of 78 kg at about 22%
 at about 11% body fat that would weigh about 68.4 kg, so roughly 10 kg of fat to lose. At 0.5 to 0.75% of
 bodyweight per week that is about 4 to 6 months, with strength held or slightly rising. Recompute from the latest
 check-ins, and say plainly when a requested timeline is shorter than that arithmetic allows.
+
+## Sources (checked against abstracts or PubMed; check the full text before quoting exact numbers)
+
+1. Schoenfeld, Ogborn & Krieger 2017: https://doi.org/10.1080/02640414.2016.1210197
+2. Schoenfeld, Grgic & Krieger 2019: https://www.semanticscholar.org/paper/How-many-times-per-week-should-a-muscle-be-trained-Schoenfeld-Grgic/5f3b9845fdfd15200bdac0f7b9b36da457c48025
+3. Refalo et al. 2023: https://doi.org/10.1007/s40279-022-01784-y and https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9935748/
+4. Morton et al. 2018: https://doi.org/10.1136/bjsports-2017-097608 and https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5867436/
+5. Schumann et al. 2022: https://www.researchgate.net/publication/356105962_Compatibility_of_Concurrent_Aerobic_and_Strength_Training_for_Skeletal_Muscle_Size_and_Function_An_Updated_Systematic_Review_and_Meta-Analysis
