@@ -17,7 +17,7 @@ import re
 import sys
 import uuid
 from collections import Counter, OrderedDict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -125,6 +125,7 @@ def build(csv_text, catalog, user_id):
         routine_id = det_id("routine", f"Workout {m.group(1)}") if m else None
 
         superset_ids = {}
+        position = 0   # file order inside the session; logged_at = start + position seconds keeps the exercise order
         session_exercises = []   # (exercise_name, n_sets, superset_group) in order
         n_session_sets = 0
         for hevy_name, block in by_exercise.items():
@@ -152,6 +153,7 @@ def build(csv_text, catalog, user_id):
             n_added = 0
             for set_no, side, r in numbered:
                 weight, reps = _num(r["weight_kg"], float), _num(r["reps"], int)
+                position += 1
                 if weight is None and reps is None:
                     report["empty_rows_dropped"] += 1
                     continue
@@ -159,7 +161,7 @@ def build(csv_text, catalog, user_id):
                     "id": det_id("set", session_id, name, set_no, side), "user_id": user_id,
                     "session_id": session_id, "exercise_id": ex_id, "set_no": set_no, "side": side,
                     "weight_kg": weight, "reps": reps, "is_warmup": r["set_type"].strip() == "warmup",
-                    "logged_at": started.isoformat(),
+                    "logged_at": (started + timedelta(seconds=position)).isoformat(),
                 })
                 n_added += 1
             if n_added == 0:

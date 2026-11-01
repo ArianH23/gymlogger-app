@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase'
 import Login from './screens/Login'
 import Routines from './screens/Routines'
 import ActiveWorkout from './screens/ActiveWorkout'
+import History from './screens/History'
 import { db } from './lib/db'
 import { syncPending } from './lib/sync'
 
@@ -49,16 +50,7 @@ export default function App() {
         {tab === 'routines' ? (
           <Routines onOpen={setOpenWorkout} />
         ) : (
-          <>
-            <h1>History</h1>
-            <div className="card">
-              <strong>Your past sessions will appear here.</strong>
-              <p className="muted">Built after the logging screen.</p>
-            </div>
-            <button className="link" onClick={() => supabase.auth.signOut()}>
-              Sign out
-            </button>
-          </>
+          <History />
         )}
       </main>
 

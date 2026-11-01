@@ -216,3 +216,15 @@ def test_superset_group_with_a_single_exercise_is_dropped():
     groups = {r["exercise_id"]: r["superset_group"] for r in build(text)["routine_exercises"]}
     assert groups[h.det_id("exercise", "Squat (Barbell)")] is None
     assert groups[h.det_id("exercise", "Bench Press (Dumbbell)")] == groups[h.det_id("exercise", "Incline Bench Press (Dumbbell) 45°")] == 2
+
+
+def test_logged_at_follows_file_order_so_exercise_order_is_kept():
+    text = csv_rows(
+        ("Workout A", "01 Oct 2026, 08:00", "Squat (Barbell)", 50, 10),
+        ("Workout A", "01 Oct 2026, 08:00", "Squat (Barbell)", 50, 9),
+        ("Workout A", "01 Oct 2026, 08:00", "Bench Press (Dumbbell)", 40, 8),
+    )
+    sets = build(text)["sets"]
+    times = [s["logged_at"] for s in sets]
+    assert times == sorted(times) and len(set(times)) == 3
+    assert [s["exercise_id"] for s in sorted(sets, key=lambda s: s["logged_at"])][0] == h.det_id("exercise", "Squat (Barbell)")
