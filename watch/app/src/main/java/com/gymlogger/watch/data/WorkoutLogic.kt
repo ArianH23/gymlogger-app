@@ -95,3 +95,28 @@ fun PlanSet.targetText(): String? {
     if (targetWeightKg == null && reps == null) return null
     return (if (targetWeightKg == null) "" else num(targetWeightKg) + "×") + (reps ?: "")
 }
+
+/** Every set row of the workout in order: exercise by exercise, set by set. */
+fun Workout.flatRows(): List<Pair<PlanExercise, Row>> = plan.flatMap { ex -> rows(ex).map { ex to it } }
+
+private fun Workout.indexOfRow(exerciseId: String, row: Row): Int = flatRows().indexOfFirst { it.first.exerciseId == exerciseId && it.second == row }
+
+/** The set [delta] places away (-1 = the one before, 1 = the one after), crossing into the next or previous exercise. Null at the ends. */
+fun Workout.step(exerciseId: String, row: Row, delta: Int): Pair<PlanExercise, Row>? {
+    val i = indexOfRow(exerciseId, row)
+    return if (i < 0) null else flatRows().getOrNull(i + delta)
+}
+
+/** The next set with nothing logged, looking after this one first (across exercises) and then from the top. Null when every set is logged. */
+fun Workout.nextOpenAfter(exerciseId: String, row: Row): Pair<PlanExercise, Row>? {
+    val all = flatRows()
+    val i = indexOfRow(exerciseId, row)
+    val ordered = if (i < 0) all else all.drop(i + 1) + all.take(i)
+    return ordered.firstOrNull { loggedAt(it.first, it.second) == null }
+}
+
+/** The exercise after this one, if any. */
+fun Workout.nextExercise(exerciseId: String): PlanExercise? {
+    val i = plan.indexOfFirst { it.exerciseId == exerciseId }
+    return if (i < 0) null else plan.getOrNull(i + 1)
+}

@@ -47,6 +47,7 @@ sealed interface Screen {
     data object Routines : Screen
     data object Overview : Screen
     data object Feeling : Screen // "how did it feel?", on finishing
+    data object AllDone : Screen // every set is logged: "finish the workout?"
     data class Exercise(val exerciseId: String) : Screen
     data class Editor(val exerciseId: String, val row: Row) : Screen
     data class Rest(val from: Screen) : Screen // the rest timer's own screen; back returns to where you were
@@ -387,6 +388,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Screen.Routines -> return false
             Screen.Overview -> Screen.Routines
             Screen.Feeling -> Screen.Overview
+            Screen.AllDone -> Screen.Overview
             is Screen.Exercise -> Screen.Overview
             is Screen.Editor -> Screen.Exercise(s.exerciseId)
             is Screen.Rest -> s.from

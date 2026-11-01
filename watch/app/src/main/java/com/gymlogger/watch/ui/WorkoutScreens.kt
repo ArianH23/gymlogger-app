@@ -151,7 +151,7 @@ fun OverviewScreen(workout: Workout, restEndsAt: Long?, onRest: () -> Unit, onli
 
 /** The sets of one exercise: tap one to log or change it. */
 @Composable
-fun ExerciseScreen(workout: Workout, ex: PlanExercise, restEndsAt: Long?, onRest: () -> Unit, onOpenRow: (Row) -> Unit, onAddSet: () -> Unit) {
+fun ExerciseScreen(workout: Workout, ex: PlanExercise, restEndsAt: Long?, onRest: () -> Unit, nextExercise: PlanExercise?, onNextExercise: () -> Unit, onOpenRow: (Row) -> Unit, onAddSet: () -> Unit) {
     val next = workout.nextOpenRow(ex)
     ScalingLazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         item { ListHeader { Text(ex.name, maxLines = 2, overflow = TextOverflow.Ellipsis) } }
@@ -170,6 +170,15 @@ fun ExerciseScreen(workout: Workout, ex: PlanExercise, restEndsAt: Long?, onRest
             else FilledTonalButton(onClick = { onOpenRow(row) }, modifier = Modifier.fillMaxWidth(), label = label, secondaryLabel = sec)
         }
         item { OutlinedButton(onClick = onAddSet, modifier = Modifier.fillMaxWidth()) { Text("+ Set") } }
+        if (nextExercise != null) {
+            item {
+                val done = next == null // this exercise is finished: make the way on obvious
+                val label: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = { Text("Next exercise ›") }
+                val secondary: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = { Text(nextExercise.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                if (done) Button(onClick = onNextExercise, modifier = Modifier.fillMaxWidth(), label = label, secondaryLabel = secondary)
+                else FilledTonalButton(onClick = onNextExercise, modifier = Modifier.fillMaxWidth(), label = label, secondaryLabel = secondary)
+            }
+        }
     }
 }
 
@@ -184,6 +193,8 @@ fun EditorScreen(
     row: Row,
     restEndsAt: Long?,
     onRest: () -> Unit,
+    onPrev: (() -> Unit)?,
+    onNext: (() -> Unit)?,
     onLog: (weight: Double?, reps: Int) -> Unit,
     onDelete: () -> Unit,
     onRemove: () -> Unit,
@@ -203,16 +214,14 @@ fun EditorScreen(
 
     Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(ex.name, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 40.dp))
-        Text(
-            row.label() + (last?.let { " · last $it" } ?: ""),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 32.dp),
-        )
+        LayoutRow(verticalAlignment = Alignment.CenterVertically) {
+            StepArrow("‹", onPrev)
+            Text(row.label(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            StepArrow("›", onNext)
+        }
+        val info = listOfNotNull(plan?.let { "plan $it" }, last?.let { "last $it" }).joinToString(" · ")
         if (restEndsAt != null) RestChip(restEndsAt, onRest)
-        else if (plan != null) Text("plan $plan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        else if (info.isNotEmpty()) Text(info, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 30.dp))
 
         PickerGroup(selectedPickerState = if (repsFocused) repsWheel else weightWheel, autoCenter = false, modifier = Modifier.weight(1f).padding(vertical = 2.dp)) {
             if (hasWeight) {
@@ -247,6 +256,17 @@ fun EditorScreen(
 }
 
 private const val MAX_REPS = 60
+
+/** A "‹" or "›" beside the set number: go to the previous or next set. Dimmed when there is none. */
+@Composable
+private fun StepArrow(symbol: String, onClick: (() -> Unit)?) {
+    Text(
+        symbol,
+        style = MaterialTheme.typography.titleMedium,
+        color = if (onClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.clickable(enabled = onClick != null) { onClick?.invoke() }.padding(horizontal = 16.dp, vertical = 2.dp),
+    )
+}
 
 /** One value of a wheel with its unit beside it ("40 kg", "6 reps"), so it is always clear which wheel is which. */
 @Composable
@@ -289,5 +309,16 @@ fun FeelingScreen(onDone: (Int?) -> Unit) {
             Button(onClick = { onDone(wheel.selectedOptionIndex + 1) }, modifier = Modifier.width(86.dp).height(42.dp)) { Text("Finish") }
             FilledTonalButton(onClick = { onDone(null) }, modifier = Modifier.width(66.dp).height(42.dp)) { Text("Skip") }
         }
+    }
+}
+
+/** Every set is logged: offer to finish right away (like Hevy), or carry on. */
+@Composable
+fun AllDoneScreen(onFinish: () -> Unit, onNotYet: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(top = 26.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("All sets done", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        Text("Finish the workout?", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        Button(onClick = onFinish, modifier = Modifier.width(150.dp).height(44.dp)) { Text("Finish") }
+        FilledTonalButton(onClick = onNotYet, modifier = Modifier.width(150.dp).height(44.dp).padding(top = 6.dp)) { Text("Not yet") }
     }
 }
