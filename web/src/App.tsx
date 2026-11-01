@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from './lib/supabase'
 import Login from './screens/Login'
 import Routines from './screens/Routines'
@@ -22,9 +23,10 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 function Shell() {
-  const { stack, openWorkoutId: openWorkout, setOpenWorkoutId: setOpenWorkout } = useNav()
+  const { stack, popToRoot, openWorkoutId: openWorkout, setOpenWorkoutId: setOpenWorkout } = useNav()
   const [session, setSession] = useState<Session | null | undefined>(undefined) // undefined = still checking
   const [tab, setTab] = useState<Tab>('routines')
+  const unfinished = useLiveQuery(() => db.workouts.filter((w) => !w.endedAt).first(), []) // the one open workout, if any
 
   // Reopening the app mid-workout takes you straight back to it.
   useEffect(() => {
@@ -51,6 +53,21 @@ function Shell() {
 
   const page = stack.length > 0 ? stack[stack.length - 1] : null
 
+  // A floating way back to the open workout, whenever it is open but not the screen you are looking at.
+  const workoutOnScreen = !!openWorkout && page === null
+  const backToWorkout =
+    unfinished && !workoutOnScreen ? (
+      <button
+        className="resume-fab"
+        onClick={() => {
+          setOpenWorkout(unfinished.id)
+          popToRoot() // close any pages on top, so the workout is what you see
+        }}
+      >
+        ‹ Back to {unfinished.title}
+      </button>
+    ) : null
+
   if (openWorkout) {
     // The workout stays mounted (but hidden) while a page is open on top of it,
     // so typed values and the rest timer survive a look at an exercise's stats.
@@ -60,17 +77,26 @@ function Shell() {
           <ActiveWorkout workoutId={openWorkout} onExit={() => setOpenWorkout(null)} />
         </div>
         {page && <PageFor view={page} />}
+        {backToWorkout}
       </>
     )
   }
 
-  if (page) return <PageFor view={page} />
+  if (page)
+    return (
+      <>
+        <PageFor view={page} />
+        {backToWorkout}
+      </>
+    )
 
   return (
     <div className="app">
       <main className="screen">
         {tab === 'routines' ? <Routines onOpen={setOpenWorkout} /> : tab === 'exercises' ? <Exercises /> : tab === 'body' ? <Body /> : <History />}
       </main>
+
+      {backToWorkout}
 
       <nav className="nav">
         <div className="nav-inner">

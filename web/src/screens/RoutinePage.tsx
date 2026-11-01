@@ -123,7 +123,9 @@ export default function RoutinePage({ id }: { id: string }) {
   const [offline, setOffline] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const active = useLiveQuery(() => db.workouts.filter((w) => !w.endedAt && w.routineId === id).first(), [id])
+  const current = useLiveQuery(() => db.workouts.filter((w) => !w.endedAt).first(), []) // the one open workout, if any
+  const active = current?.routineId === id ? current : undefined
+  const blocked = !!current && !active // another workout is open: this one cannot be started meanwhile
 
   useEffect(() => {
     const key = `gl_routine_page_${id}`
@@ -187,8 +189,8 @@ export default function RoutinePage({ id }: { id: string }) {
           <p className="muted subtitle">
             {data.lastStartedAt ? `Last done ${formatDate(data.lastStartedAt)} · ${daysAgo(data.lastStartedAt)}` : 'Not done yet'}
           </p>
-          <button className="primary" disabled={busy} onClick={start}>
-            {busy ? 'Loading…' : active ? 'Resume workout' : 'Start workout'}
+          <button className="primary" disabled={busy || blocked} onClick={start}>
+            {busy ? 'Loading…' : active ? 'Resume workout' : blocked ? `${current?.title} in progress` : 'Start workout'}
           </button>
 
           {data.planKind === 'claude' && data.planNotes && <p className="card note-card">“{data.planNotes}”</p>}

@@ -120,8 +120,32 @@ export async function prefetchPlans(routineIds: string[]) {
   await Promise.allSettled(routineIds.map((id) => getWorkoutPlan(id)))
 }
 
+/** Only one workout can be open at a time, so nothing here starts a second one. */
+async function assertNoOpenWorkout() {
+  const open = await db.workouts.filter((w) => !w.endedAt).first()
+  if (open) throw new Error(`${open.title} is still in progress. Finish or discard it first.`)
+}
+
+/** Creates an empty workout (exercises are added as you go) and returns its id. */
+export async function startEmptyWorkout(): Promise<string> {
+  await assertNoOpenWorkout()
+  const hour = new Date().getHours()
+  const id = crypto.randomUUID()
+  await db.workouts.add({
+    id,
+    routineId: null,
+    title: hour < 12 ? 'Morning workout' : hour < 18 ? 'Afternoon workout' : 'Evening workout',
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+    plan: [],
+    extraSets: {},
+  })
+  return id
+}
+
 /** Creates the on-phone workout for a routine (with its plan) and returns its id. */
 export async function startRoutineWorkout(routineId: string, title: string): Promise<string> {
+  await assertNoOpenWorkout()
   const plan = await getWorkoutPlan(routineId)
   const id = crypto.randomUUID()
   await db.workouts.add({ id, routineId, title, startedAt: new Date().toISOString(), endedAt: null, plan, extraSets: {} })

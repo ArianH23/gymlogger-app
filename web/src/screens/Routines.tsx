@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
-import { prefetchPlans, startRoutineWorkout } from '../lib/workoutPlan'
+import { prefetchPlans, startEmptyWorkout, startRoutineWorkout } from '../lib/workoutPlan'
 import { syncPending } from '../lib/sync'
 import { useNav } from '../lib/nav'
 import { daysAgo } from '../lib/format'
@@ -65,18 +65,11 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
   }
 
   async function startEmpty() {
-    const hour = new Date().getHours()
-    const id = crypto.randomUUID()
-    await db.workouts.add({
-      id,
-      routineId: null,
-      title: hour < 12 ? 'Morning workout' : hour < 18 ? 'Afternoon workout' : 'Evening workout',
-      startedAt: new Date().toISOString(),
-      endedAt: null,
-      plan: [],
-      extraSets: {},
-    })
-    onOpen(id)
+    try {
+      onOpen(await startEmptyWorkout())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
   }
 
   async function start(r: RoutineCard) {
@@ -115,7 +108,7 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
     }
   }, [])
 
-  const emptyOpen = inProgress?.find((w) => w.routineId === null)
+  const current = inProgress?.[0] // the one open workout, if any: nothing else can be started meanwhile
 
   return (
     <>
@@ -145,13 +138,14 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
           </span>
         </button>
       )}
-      <button className="outline" onClick={() => (emptyOpen ? onOpen(emptyOpen.id) : startEmpty())}>
-        {emptyOpen ? `Resume ${emptyOpen.title.toLowerCase()}` : '+ Start empty workout'}
+      <button className="outline" onClick={() => (current ? onOpen(current.id) : startEmpty())}>
+        {current ? `Resume ${current.title}` : '+ Start empty workout'}
       </button>
       {error && <div className="card error">Could not load routines: {error}</div>}
       {!routines && !error && <p className="muted">Loading…</p>}
       {routines?.map((r) => {
         const active = inProgress?.find((w) => w.routineId === r.id)
+        const blocked = !!current && !active // another workout is open
         return (
           <div className={`card routine${r.isNext ? ' next' : ''}`} key={r.id}>
             <div className="routine-head">
@@ -169,8 +163,8 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
               {r.isNext && <span className="badge next-badge">Next up</span>}
               {r.plan && <span className={`badge ${r.plan}`}>{r.plan === 'claude' ? 'Claude plan ready' : 'Auto plan ready'}</span>}
             </div>
-            <button className="primary start" disabled={starting !== null} onClick={() => (active ? onOpen(active.id) : start(r))}>
-              {starting === r.id ? 'Loading…' : active ? 'Resume workout' : 'Start workout'}
+            <button className="primary start" disabled={starting !== null || blocked} onClick={() => (active ? onOpen(active.id) : start(r))}>
+              {starting === r.id ? 'Loading…' : active ? 'Resume workout' : blocked ? `${current?.title} in progress` : 'Start workout'}
             </button>
           </div>
         )
