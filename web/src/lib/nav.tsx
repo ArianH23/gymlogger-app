@@ -7,6 +7,7 @@ export type View =
   | { type: 'exercise'; id: string }
   | { type: 'session'; id: string }
   | { type: 'exerciseForm'; id?: string } // no id = new exercise
+  | { type: 'routineForm'; id?: string } // no id = new routine
 
 type Nav = { stack: View[]; push: (v: View) => void; back: () => void }
 

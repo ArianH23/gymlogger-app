@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
 import { getWorkoutPlan, prefetchPlans } from '../lib/workoutPlan'
 import { syncPending } from '../lib/sync'
+import { useNav } from '../lib/nav'
 
 type RoutineCard = {
   id: string
@@ -51,6 +52,7 @@ async function loadRoutines(): Promise<RoutineCard[]> {
 }
 
 export default function Routines({ onOpen }: { onOpen: (workoutId: string) => void }) {
+  const { push } = useNav()
   const [routines, setRoutines] = useState<RoutineCard[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState<string | null>(null)
@@ -63,6 +65,21 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
     setRetrying(true)
     setUploadError(await syncPending())
     setRetrying(false)
+  }
+
+  async function startEmpty() {
+    const hour = new Date().getHours()
+    const id = crypto.randomUUID()
+    await db.workouts.add({
+      id,
+      routineId: null,
+      title: hour < 12 ? 'Morning workout' : hour < 18 ? 'Afternoon workout' : 'Evening workout',
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+      plan: [],
+      extraSets: {},
+    })
+    onOpen(id)
   }
 
   async function start(r: RoutineCard) {
@@ -114,7 +131,12 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
 
   return (
     <>
-      <h1>Routines</h1>
+      <div className="title-row">
+        <h1>Routines</h1>
+        <button className="chip on" onClick={() => push({ type: 'routineForm' })}>
+          + New
+        </button>
+      </div>
       {!!waiting && (
         <div className="card waiting">
           <strong>
@@ -127,13 +149,26 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
           </button>
         </div>
       )}
+      {(() => {
+        const emptyOpen = inProgress?.find((w) => w.routineId === null)
+        return (
+          <button className="outline" onClick={() => (emptyOpen ? onOpen(emptyOpen.id) : startEmpty())}>
+            {emptyOpen ? `Resume ${emptyOpen.title.toLowerCase()}` : '+ Start empty workout'}
+          </button>
+        )
+      })()}
       {error && <div className="card error">Could not load routines: {error}</div>}
       {!routines && !error && <p className="muted">Loading…</p>}
       {routines?.map((r) => {
         const active = inProgress?.find((w) => w.routineId === r.id)
         return (
         <div className="card routine" key={r.id}>
-          <div className="routine-title">{r.name}</div>
+          <div className="routine-head">
+            <div className="routine-title">{r.name}</div>
+            <button className="link edit-link" onClick={() => push({ type: 'routineForm', id: r.id })}>
+              Edit
+            </button>
+          </div>
           <div className="muted">
             {r.exerciseCount} exercises · {r.lastSession ? `last ${formatDay(r.lastSession)}` : 'not done yet'}
           </div>

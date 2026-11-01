@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type LoggedSet, type PlanExercise, type PlanSet, type Workout } from '../lib/db'
+import { db, type LastSet, type LoggedSet, type PlanExercise, type PlanSet, type Workout } from '../lib/db'
 import RestTimer, { restSeconds, type Rest } from '../components/RestTimer'
 import { syncPending } from '../lib/sync'
 import { useNav } from '../lib/nav'
+import { supabase } from '../lib/supabase'
+import ExercisePicker from '../components/ExercisePicker'
+import SaveRoutineSheet from '../components/SaveRoutineSheet'
+import { createRoutine, suggestRoutineName } from '../lib/routines'
+import type { ExerciseRow } from '../lib/exerciseList'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -89,6 +94,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const logged = useLiveQuery(() => db.sets.where('sessionId').equals(workoutId).toArray(), [workoutId])
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [rest, setRest] = useState<Rest | null>(null)
+  const [picking, setPicking] = useState(false)
+  const [askSave, setAskSave] = useState(false)
 
   if (!workout || !logged) return null
   const loggedByKey = new Map(logged.map((s) => [rowKey(s.exerciseId, s.setNo, s.side), s]))
@@ -128,6 +135,43 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     await db.workouts.update(w.id, { extraSets: { ...w.extraSets, [exerciseId]: (w.extraSets[exerciseId] ?? 0) + 1 } })
   }
 
+  /** Adds an exercise that isn't in the plan. Sets start from what you did last time, when that is known. */
+  async function addExercise(row: ExerciseRow) {
+    setPicking(false)
+    let last: LastSet[] = []
+    try {
+      const { data } = await supabase
+        .from('last_performance')
+        .select('set_no, weight_kg, reps_l, reps_r, reps_result')
+        .eq('exercise_id', row.id)
+        .order('set_no')
+      last = (data ?? []).map((r) => ({ setNo: r.set_no, weightKg: r.weight_kg, repsL: r.reps_l, repsR: r.reps_r, repsResult: r.reps_result }))
+    } catch {
+      // no signal: the exercise is added without last-time numbers
+    }
+    const count = Math.max(last.length, 3)
+    const sets: PlanSet[] = Array.from({ length: count }, (_, i) => {
+      const l = last[i] ?? last[last.length - 1]
+      return { setNo: i + 1, weightKg: l?.weightKg ?? null, repsMin: l?.repsResult ?? null, repsMax: null, note: i === 0 && l ? 'Same as last time' : null }
+    })
+    const ex: PlanExercise = {
+      exerciseId: row.id,
+      name: row.name,
+      loadType: row.loadType,
+      unilateral: row.unilateral,
+      dumbbellPair: row.dumbbellPair,
+      sets,
+      last,
+    }
+    await db.workouts.update(workoutId, { plan: [...workout!.plan, ex] })
+  }
+
+  /** Only for an exercise you haven't logged anything for yet (to swap it for another). */
+  async function removeExercise(w: Workout, exerciseId: string) {
+    const { [exerciseId]: _dropped, ...extraSets } = w.extraSets
+    await db.workouts.update(w.id, { plan: w.plan.filter((e) => e.exerciseId !== exerciseId), extraSets })
+  }
+
   async function discard(ask = true) {
     if (ask && !window.confirm('Discard this workout and everything logged in it?')) return
     await db.sets.where('sessionId').equals(workoutId).delete()
@@ -135,14 +179,36 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     onExit()
   }
 
+  async function completeFinish(routineId: string | null) {
+    await db.workouts.update(workoutId, { endedAt: new Date().toISOString(), routineId })
+    onExit()
+    void syncPending() // uploads in the background; retried automatically if there is no signal
+  }
+
   async function finish() {
     if (logged!.length === 0) {
       if (window.confirm('No sets logged. Discard this workout?')) await discard(false)
       return
     }
-    await db.workouts.update(workoutId, { endedAt: new Date().toISOString() })
-    onExit()
-    void syncPending() // uploads in the background; retried automatically if there is no signal
+    // An empty (routine-less) workout can be kept as a routine.
+    if (workout!.routineId === null) setAskSave(true)
+    else await completeFinish(workout!.routineId)
+  }
+
+  /** Exercises that have logged sets, in workout order, with how many sets you did of each. */
+  function routineItems() {
+    return workout!.plan
+      .map((ex) => ({
+        exerciseId: ex.exerciseId,
+        targetSets: new Set(logged!.filter((s) => s.exerciseId === ex.exerciseId).map((s) => s.setNo)).size,
+      }))
+      .filter((it) => it.targetSets > 0)
+  }
+
+  async function saveAsRoutine(name: string) {
+    const id = await createRoutine(name, routineItems())
+    setAskSave(false)
+    await completeFinish(id)
   }
 
   return (
@@ -161,6 +227,13 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
           Started {new Date(workout.startedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} ·{' '}
           {logged.length} {logged.length === 1 ? 'set' : 'sets'} logged
         </p>
+
+        {workout.plan.length === 0 && (
+          <div className="card">
+            <strong>Empty workout</strong>
+            <p className="muted">Add the first exercise to start logging.</p>
+          </div>
+        )}
 
         {workout.plan.map((ex) => {
           const extra = workout.extraSets[ex.exerciseId] ?? 0
@@ -204,17 +277,41 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                   </div>
                 )
               })}
-              <button className="link" onClick={() => addSet(workout, ex.exerciseId)}>
-                + Set
-              </button>
+              <div className="card-actions">
+                <button className="link" onClick={() => addSet(workout, ex.exerciseId)}>
+                  + Set
+                </button>
+                {!logged.some((s) => s.exerciseId === ex.exerciseId) && (
+                  <button className="link danger" onClick={() => removeExercise(workout, ex.exerciseId)}>
+                    Remove exercise
+                  </button>
+                )}
+              </div>
             </section>
           )
         })}
+
+        <button className="primary add-exercise" onClick={() => setPicking(true)}>
+          + Add exercise
+        </button>
 
         <button className="link danger" onClick={() => discard()}>
           Discard workout
         </button>
       </main>
+      {askSave && (
+        <SaveRoutineSheet
+          defaultName={suggestRoutineName()}
+          exerciseCount={routineItems().length}
+          onSave={saveAsRoutine}
+          onSkip={() => {
+            setAskSave(false)
+            void completeFinish(null)
+          }}
+          onCancel={() => setAskSave(false)}
+        />
+      )}
+      {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(false)} taken={new Set(workout.plan.map((e) => e.exerciseId))} />}
       {rest && <RestTimer rest={rest} onChange={setRest} />}
     </div>
   )

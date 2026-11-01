@@ -31,7 +31,7 @@ export type PlanExercise = {
 
 export type Workout = {
   id: string // becomes sessions.id in Supabase
-  routineId: string
+  routineId: string | null // null = an empty workout built on the fly
   title: string
   startedAt: string
   endedAt: string | null
