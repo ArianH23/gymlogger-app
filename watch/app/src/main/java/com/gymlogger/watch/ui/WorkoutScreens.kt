@@ -240,8 +240,8 @@ fun EditorScreen(
             ) { Text(if (logged != null) "Save" else "Log") }
             FilledTonalButton(
                 onClick = if (logged != null) onDelete else onRemove,
-                modifier = Modifier.width(84.dp).height(42.dp),
-            ) { Text(if (logged != null) "Unlog" else "Remove") }
+                modifier = Modifier.width(if (logged != null) 84.dp else 46.dp).height(42.dp),
+            ) { Text(if (logged != null) "Unlog" else "✕") }
         }
     }
 }
