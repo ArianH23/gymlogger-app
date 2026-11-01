@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug builds talk to the local test database over plain http (10.0.2.2 = your PC from the emulator).
+         Release builds only use https. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

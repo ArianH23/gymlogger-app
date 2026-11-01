@@ -1,0 +1,8 @@
+# Build output and tool state
+.gradle/
+build/
+app/build/
+.idea/
+*.iml
+# Machine- and secret-specific settings: the Android SDK path and the Supabase address/keys
+local.properties
