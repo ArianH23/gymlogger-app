@@ -35,6 +35,7 @@ export type Workout = {
   title: string
   startedAt: string
   endedAt: string | null
+  syncedAt?: string | null // set once the session, its sets and finish_session have all reached Supabase
   plan: PlanExercise[] // snapshot taken at start, so the screen works offline
   extraSets: Record<string, number> // exerciseId -> number of extra sets added with "+ Set"
 }
@@ -52,15 +53,24 @@ export type LoggedSet = {
   synced: 0 | 1
 }
 
+// Last plan downloaded for each routine, so a workout can start with no signal.
+export type CachedPlan = { routineId: string; plan: PlanExercise[]; fetchedAt: string }
+
 class GymDB extends Dexie {
   workouts!: Table<Workout, string>
   sets!: Table<LoggedSet, string>
+  plans!: Table<CachedPlan, string>
 
   constructor() {
     super('gymlogger')
     this.version(1).stores({
       workouts: 'id, routineId, endedAt',
       sets: 'id, sessionId, synced',
+    })
+    this.version(2).stores({
+      workouts: 'id, routineId, endedAt',
+      sets: 'id, sessionId, synced',
+      plans: 'routineId',
     })
   }
 }

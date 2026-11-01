@@ -5,6 +5,7 @@ import Login from './screens/Login'
 import Routines from './screens/Routines'
 import ActiveWorkout from './screens/ActiveWorkout'
 import { db } from './lib/db'
+import { syncPending } from './lib/sync'
 
 type Tab = 'routines' | 'history'
 
@@ -22,6 +23,15 @@ export default function App() {
   useEffect(() => {
     db.workouts.filter((w) => !w.endedAt).first().then((w) => w && setOpenWorkout(w.id))
   }, [])
+
+  // Upload anything waiting: when the app opens and whenever the connection comes back.
+  useEffect(() => {
+    if (!session) return
+    void syncPending()
+    const retry = () => void syncPending()
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [session])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))

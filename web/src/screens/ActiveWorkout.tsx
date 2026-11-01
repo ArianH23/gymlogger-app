@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type LoggedSet, type PlanExercise, type PlanSet, type Workout } from '../lib/db'
 import RestTimer, { restSeconds, type Rest } from '../components/RestTimer'
+import { syncPending } from '../lib/sync'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -125,16 +126,21 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     await db.workouts.update(w.id, { extraSets: { ...w.extraSets, [exerciseId]: (w.extraSets[exerciseId] ?? 0) + 1 } })
   }
 
-  async function finish() {
-    await db.workouts.update(workoutId, { endedAt: new Date().toISOString() })
-    onExit()
-  }
-
-  async function discard() {
-    if (!window.confirm('Discard this workout and everything logged in it?')) return
+  async function discard(ask = true) {
+    if (ask && !window.confirm('Discard this workout and everything logged in it?')) return
     await db.sets.where('sessionId').equals(workoutId).delete()
     await db.workouts.delete(workoutId)
     onExit()
+  }
+
+  async function finish() {
+    if (logged!.length === 0) {
+      if (window.confirm('No sets logged. Discard this workout?')) await discard(false)
+      return
+    }
+    await db.workouts.update(workoutId, { endedAt: new Date().toISOString() })
+    onExit()
+    void syncPending() // uploads in the background; retried automatically if there is no signal
   }
 
   return (
@@ -201,7 +207,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
           )
         })}
 
-        <button className="link danger" onClick={discard}>
+        <button className="link danger" onClick={() => discard()}>
           Discard workout
         </button>
       </main>

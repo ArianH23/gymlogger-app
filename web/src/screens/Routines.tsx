@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
-import { fetchWorkoutPlan } from '../lib/workoutPlan'
+import { getWorkoutPlan, prefetchPlans } from '../lib/workoutPlan'
+import { syncPending } from '../lib/sync'
 
 type RoutineCard = {
   id: string
@@ -54,12 +55,21 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState<string | null>(null)
   const inProgress = useLiveQuery(() => db.workouts.filter((w) => !w.endedAt).toArray(), [])
+  const waiting = useLiveQuery(() => db.workouts.filter((w) => !!w.endedAt && !w.syncedAt).count(), [])
+  const [retrying, setRetrying] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  async function retry() {
+    setRetrying(true)
+    setUploadError(await syncPending())
+    setRetrying(false)
+  }
 
   async function start(r: RoutineCard) {
     setStarting(r.id)
     setError(null)
     try {
-      const plan = await fetchWorkoutPlan(r.id)
+      const plan = await getWorkoutPlan(r.id)
       const id = crypto.randomUUID()
       await db.workouts.add({
         id,
@@ -78,15 +88,45 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
     }
   }
 
+  // Load the routine list (or the last copy if there is no signal) and keep every plan on the phone.
   useEffect(() => {
-    loadRoutines()
-      .then(setRoutines)
-      .catch((e) => setError(e.message ?? String(e)))
+    const load = () =>
+      loadRoutines()
+        .then((list) => {
+          localStorage.setItem('gl_routines', JSON.stringify(list))
+          setRoutines(list)
+          setError(null)
+          void prefetchPlans(list.map((r) => r.id))
+        })
+        .catch((e) => {
+          const saved = localStorage.getItem('gl_routines')
+          if (saved) setRoutines(JSON.parse(saved) as RoutineCard[])
+          else setError(e.message ?? String(e))
+        })
+    void load()
+    window.addEventListener('online', load)
+    document.addEventListener('visibilitychange', load)
+    return () => {
+      window.removeEventListener('online', load)
+      document.removeEventListener('visibilitychange', load)
+    }
   }, [])
 
   return (
     <>
       <h1>Routines</h1>
+      {!!waiting && (
+        <div className="card waiting">
+          <strong>
+            {waiting} {waiting === 1 ? 'workout' : 'workouts'} waiting to upload
+          </strong>
+          <p className="muted">Saved on this phone. It uploads by itself when there is signal.</p>
+          {uploadError && <p className="error">{uploadError}</p>}
+          <button className="primary" disabled={retrying} onClick={retry}>
+            {retrying ? 'Uploading…' : 'Retry now'}
+          </button>
+        </div>
+      )}
       {error && <div className="card error">Could not load routines: {error}</div>}
       {!routines && !error && <p className="muted">Loading…</p>}
       {routines?.map((r) => {

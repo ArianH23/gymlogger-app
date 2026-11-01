@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { LastSet, PlanExercise, PlanSet } from './db'
+import { db, type LastSet, type PlanExercise, type PlanSet } from './db'
 
 type ExerciseInfo = { name: string; load_type: PlanExercise['loadType']; unilateral: boolean; dumbbell_pair: boolean }
 
@@ -29,7 +29,7 @@ const EXERCISE_FIELDS = 'exercises(name, load_type, unilateral, dumbbell_pair)'
 
 /** Everything the workout screen needs for one routine: the exercises in order, the plan's targets
  * (Claude's plan if there is one, else the automatic one) and what you did last time. */
-export async function fetchWorkoutPlan(routineId: string): Promise<PlanExercise[]> {
+async function fetchWorkoutPlanFromServer(routineId: string): Promise<PlanExercise[]> {
   const exercises = new Map<string, PlanExercise>()
   const order: string[] = []
   const add = (id: string, info: ExerciseInfo) => {
@@ -108,4 +108,23 @@ export async function fetchWorkoutPlan(routineId: string): Promise<PlanExercise[
   }
 
   return order.map((id) => exercises.get(id)!)
+}
+
+/** The plan for a routine: fresh from Supabase when there is signal (and kept on the phone), otherwise the
+ * last copy that was downloaded. Fails only if there is no signal and nothing was ever downloaded. */
+export async function getWorkoutPlan(routineId: string): Promise<PlanExercise[]> {
+  try {
+    const plan = await fetchWorkoutPlanFromServer(routineId)
+    await db.plans.put({ routineId, plan, fetchedAt: new Date().toISOString() })
+    return plan
+  } catch (e) {
+    const cached = await db.plans.get(routineId)
+    if (cached) return cached.plan
+    throw e
+  }
+}
+
+/** Downloads every routine's plan in the background, so they are on the phone before the signal drops. */
+export async function prefetchPlans(routineIds: string[]) {
+  await Promise.allSettled(routineIds.map((id) => getWorkoutPlan(id)))
 }
