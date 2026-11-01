@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type LastSet, type LoggedSet, type PlanExercise, type PlanSet, type Workout } from '../lib/db'
 import RestTimer, { restSeconds, type Rest } from '../components/RestTimer'
-import { syncPending } from '../lib/sync'
+import { noteDeletedSet, scheduleSync, syncPending, touchLive } from '../lib/sync'
 import { useNav } from '../lib/nav'
 import { supabase } from '../lib/supabase'
 import ExercisePicker from '../components/ExercisePicker'
@@ -81,6 +81,13 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const [picking, setPicking] = useState(false)
   const [askFinish, setAskFinish] = useState(false)
 
+  // If this workout was finished or thrown away on another device, leave it.
+  const seen = useRef(false)
+  useEffect(() => {
+    if (workout) seen.current = true
+    if ((workout && workout.endedAt) || (!workout && seen.current)) onExit()
+  }, [workout, onExit])
+
   if (!workout || !logged) return null
   const loggedByKey = new Map(logged.map((s) => [rowKey(s.exerciseId, s.setNo, s.side), s]))
 
@@ -88,7 +95,9 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     const key = rowKey(ex.exerciseId, setNo, side)
     const existing = loggedByKey.get(key)
     if (existing) {
+      await noteDeletedSet(workoutId, existing) // so the server and the other devices drop it too
       await db.sets.delete(existing.id)
+      scheduleSync()
       return
     }
     const reps = parseInt(draft.reps, 10)
@@ -113,10 +122,12 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
       loggedAt: new Date().toISOString(),
       synced: 0,
     })
+    scheduleSync() // shared with the other devices within a moment (and saved here already)
   }
 
   async function addSet(w: Workout, exerciseId: string) {
     await db.workouts.update(w.id, { extraSets: { ...w.extraSets, [exerciseId]: (w.extraSets[exerciseId] ?? 0) + 1 } })
+    await touchLive(w.id)
   }
 
   /** Adds an exercise that isn't in the plan. Sets start from what you did last time, when that is known. */
@@ -148,18 +159,22 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
       last,
     }
     await db.workouts.update(workoutId, { plan: [...workout!.plan, ex] })
+    await touchLive(workoutId)
   }
 
   /** Only for an exercise you haven't logged anything for yet (to swap it for another). */
   async function removeExercise(w: Workout, exerciseId: string) {
     const { [exerciseId]: _dropped, ...extraSets } = w.extraSets
     await db.workouts.update(w.id, { plan: w.plan.filter((e) => e.exerciseId !== exerciseId), extraSets })
+    await touchLive(w.id)
   }
 
   async function discard(ask = true) {
     if (ask && !window.confirm('Discard this workout and everything logged in it?')) return
     await db.sets.where('sessionId').equals(workoutId).delete()
     await db.workouts.delete(workoutId)
+    await db.discards.put({ id: workoutId }) // the server (and the other devices) throw it away too, as soon as there is signal
+    scheduleSync(0)
     onExit()
   }
 
@@ -221,7 +236,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
           const extra = workout.extraSets[ex.exerciseId] ?? 0
           const planned = ex.sets.map((s) => s.setNo)
           const next = Math.max(0, ...planned) + 1
-          const setNos = [...planned, ...Array.from({ length: extra }, (_, i) => next + i)]
+          const removed = new Set(workout.removedSets?.[ex.exerciseId] ?? []) // taken off the list on another device
+          const setNos = [...planned, ...Array.from({ length: extra }, (_, i) => next + i)].filter((n) => !removed.has(n))
           const sides: Side[] = ex.unilateral ? ['L', 'R'] : [null]
           return (
             <section className="card exercise" key={ex.exerciseId}>

@@ -1,7 +1,8 @@
 import { supabase } from './supabase'
 import { db, type LastSet, type PlanExercise, type PlanSet } from './db'
+import { syncPending } from './sync'
 
-type ExerciseInfo = { name: string; load_type: PlanExercise['loadType']; unilateral: boolean; dumbbell_pair: boolean }
+type ExerciseInfo = { name: string; load_type: PlanExercise['loadType']; unilateral: boolean; dumbbell_pair: boolean; increment_kg: number | null }
 
 type RoutineExerciseRow = { exercise_id: string; position: number; target_sets: number; exercises: ExerciseInfo }
 
@@ -14,7 +15,7 @@ type LastRow = {
   reps_result: number | null
 }
 
-const EXERCISE_FIELDS = 'exercises(name, load_type, unilateral, dumbbell_pair)'
+const EXERCISE_FIELDS = 'exercises(name, load_type, unilateral, dumbbell_pair, increment_kg)'
 
 /** Everything the workout screen needs for one routine: the exercises in order, the plan's targets
  * (Claude's plan if there is one, else the automatic one) and what you did last time. */
@@ -29,6 +30,7 @@ async function fetchWorkoutPlanFromServer(routineId: string): Promise<PlanExerci
         loadType: info.load_type,
         unilateral: info.unilateral,
         dumbbellPair: info.dumbbell_pair,
+        incrementKg: info.increment_kg === null ? null : Number(info.increment_kg),
         sets: [],
         last: [],
       })
@@ -51,7 +53,7 @@ async function fetchWorkoutPlanFromServer(routineId: string): Promise<PlanExerci
       note: string | null
     }[]
     const ids = [...new Set(rows.map((r) => r.exercise_id))]
-    const { data: infos, error } = await supabase.from('exercises').select('id, name, load_type, unilateral, dumbbell_pair').in('id', ids)
+    const { data: infos, error } = await supabase.from('exercises').select('id, name, load_type, unilateral, dumbbell_pair, increment_kg').in('id', ids)
     if (error) throw error
     const infoById = new Map((infos ?? []).map((e) => [e.id as string, e as unknown as ExerciseInfo]))
     for (const r of rows) {
@@ -120,8 +122,10 @@ export async function prefetchPlans(routineIds: string[]) {
   await Promise.allSettled(routineIds.map((id) => getWorkoutPlan(id)))
 }
 
-/** Only one workout can be open at a time, so nothing here starts a second one. */
+/** Only one workout can be open at a time (across the phone and the watch), so nothing here starts a second one. */
 async function assertNoOpenWorkout() {
+  // First look, briefly, for a workout started on another device (it is adopted here). With no signal we just carry on.
+  await Promise.race([syncPending(), new Promise((resolve) => setTimeout(resolve, 4000))])
   const open = await db.workouts.filter((w) => !w.endedAt).first()
   if (open) throw new Error(`${open.title} is still in progress. Finish or discard it first.`)
 }
@@ -139,6 +143,7 @@ export async function startEmptyWorkout(): Promise<string> {
     endedAt: null,
     plan: [],
     extraSets: {},
+    liveRev: 1,
   })
   return id
 }
@@ -148,6 +153,6 @@ export async function startRoutineWorkout(routineId: string, title: string): Pro
   await assertNoOpenWorkout()
   const plan = await getWorkoutPlan(routineId)
   const id = crypto.randomUUID()
-  await db.workouts.add({ id, routineId, title, startedAt: new Date().toISOString(), endedAt: null, plan, extraSets: {} })
+  await db.workouts.add({ id, routineId, title, startedAt: new Date().toISOString(), endedAt: null, plan, extraSets: {}, liveRev: 1 })
   return id
 }

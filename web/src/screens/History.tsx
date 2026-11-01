@@ -32,6 +32,7 @@ export default function History() {
       .select('id, title, started_at, ended_at, sets(count)')
       .is('deleted_at', null)
       .not('ended_at', 'is', null)
+      .is('sets.deleted_at', null) // do not count sets that were deleted
       .order('started_at', { ascending: false })
       .range(from, from + PAGE - 1)
     setLoading(false)

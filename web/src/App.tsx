@@ -48,13 +48,21 @@ function Shell() {
     db.workouts.filter((w) => !w.endedAt).first().then((w) => w && setOpenWorkout(w.id))
   }, [])
 
-  // Upload anything waiting: when the app opens and whenever the connection comes back.
+  // Keep this phone and the other devices in step: when the app opens, whenever the connection comes back or the app
+  // is shown again, and every few seconds while it is open (a workout started on the watch appears here).
   useEffect(() => {
     if (!session) return
     void syncPending()
     const retry = () => void syncPending()
+    const whenShown = () => document.visibilityState === 'visible' && retry()
     window.addEventListener('online', retry)
-    return () => window.removeEventListener('online', retry)
+    document.addEventListener('visibilitychange', whenShown)
+    const timer = setInterval(whenShown, 6000)
+    return () => {
+      window.removeEventListener('online', retry)
+      document.removeEventListener('visibilitychange', whenShown)
+      clearInterval(timer)
+    }
   }, [session])
 
   useEffect(() => {
