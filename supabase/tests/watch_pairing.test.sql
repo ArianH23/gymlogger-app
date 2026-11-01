@@ -3,6 +3,8 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(18);
 
+-- Work on a clean slate (the local database may hold codes made by hand-testing); this is rolled back at the end.
+delete from public.watch_pairings;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'test@example.com');
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
 

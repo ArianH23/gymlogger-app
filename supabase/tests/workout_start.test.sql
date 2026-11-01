@@ -1,12 +1,12 @@
 -- Tests for workout_start (what a client needs to start a workout). Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'test@example.com');
-insert into public.exercises (id, user_id, name, rep_min, rep_max, unilateral, dumbbell_pair, load_type) values
-  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000a1', 'Zz Start Press', 6, 10, false, true, 'weighted'),
-  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000a1', 'Zz Start Raise', 12, 20, true, false, 'weighted');
+insert into public.exercises (id, user_id, name, rep_min, rep_max, unilateral, dumbbell_pair, load_type, increment_kg) values
+  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000a1', 'Zz Start Press', 6, 10, false, true, 'weighted', 4),
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000a1', 'Zz Start Raise', 12, 20, true, false, 'weighted', null);
 insert into public.routines (id, user_id, name) values ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1', 'Zz Start Routine');
 insert into public.routine_exercises (user_id, routine_id, exercise_id, position, target_sets) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e2', 2, 2),
@@ -32,6 +32,9 @@ insert into public.sets (user_id, session_id, exercise_id, set_no, side, weight_
 select is(pg_temp.ws() -> 'exercises' -> 0 -> 'last' -> 0 ->> 'reps_result', '8', 'last time is included');
 select is(pg_temp.ws() -> 'exercises' -> 1 -> 'last' -> 0 ->> 'reps_l', '12', 'left/right: both sides in last time');
 select is(pg_temp.ws() -> 'exercises' -> 1 -> 'last' -> 0 ->> 'reps_result', '10', 'left/right: the lower side is the result');
+
+select is((pg_temp.ws() -> 'exercises' -> 0 ->> 'increment_kg')::numeric, 4::numeric, 'the exercise''s increment_kg is included');
+select is(pg_temp.ws() -> 'exercises' -> 1 -> 'increment_kg', 'null'::jsonb, 'no increment set: null');
 
 -- A rules plan, then a claude plan.
 insert into public.planned_sessions (id, user_id, routine_id, created_by, status, notes) values
