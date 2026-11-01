@@ -4,7 +4,8 @@ need a one-line pointer (`select claude_instructions()`) and never a pasted copy
     python scripts/publish_guide.py --user-id <auth user uuid> --env-file importer/.env.cloud            # dry run
     python scripts/publish_guide.py --user-id <auth user uuid> --env-file importer/.env.cloud --apply    # publish
 
-Publishes CLAUDE_GUIDE.md as 'planning-guide' and docs/goal.md as 'owner-goal'. goal.md stays out of git.
+Publishes CLAUDE_GUIDE.md as 'planning-guide', docs/evidence.md as 'evidence-notes' and docs/goal.md as
+'owner-goal'. goal.md stays out of git.
 The env file holds SUPABASE_URL and SUPABASE_SERVICE_KEY (never committed).
 """
 import argparse
@@ -34,6 +35,7 @@ def main():
 
     docs = {
         "planning-guide": (root / "CLAUDE_GUIDE.md").read_text(encoding="utf-8"),
+        "evidence-notes": (root / "docs" / "evidence.md").read_text(encoding="utf-8").strip(),
         "owner-goal": (root / "docs" / "goal.md").read_text(encoding="utf-8").strip(),
     }
     for name, body in docs.items():

@@ -41,6 +41,7 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 | `importer/` | Hevy CSV importer (`hevy_import.py`), exercise catalog (`exercises.csv`), pytest tests |
 | `scripts/` | `publish_guide.py` (Claude's instructions into the database), `draw_schema.py`, `watch_api_check.py` (plays the watch over plain HTTP to prove the contract) |
 | `CLAUDE_GUIDE.md` | how Claude reads the database and writes a plan |
+| `docs/evidence.md` | short, verified research notes Claude cites (published as `evidence-notes`) |
 | `docs/prompts/` | the two short prompts: the scheduled task and the chat project |
 | `docs/WATCH.md` | plan and contract for the future Wear OS app |
 
@@ -65,7 +66,7 @@ and `npx supabase test db`. To publish: `npx supabase db push --linked --dry-run
 **Deploy the app.** `cd web && npm run build && npx wrangler deploy`. It is static hosting on Cloudflare; the
 address is printed at the end. The phone updates itself the next time it opens with signal.
 
-**Change Claude's instructions.** Edit `CLAUDE_GUIDE.md` (or `docs/goal.md`, which stays out of git), then
+**Change Claude's instructions.** Edit `CLAUDE_GUIDE.md`, `docs/evidence.md` or `docs/goal.md` (which stays out of git), then
 `python scripts/publish_guide.py --user-id <your auth user id> --env-file importer/.env.cloud --apply`. The chat
 project and the scheduled task both read it from the database, so nothing is pasted anywhere.
 

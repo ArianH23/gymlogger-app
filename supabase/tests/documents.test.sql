@@ -1,10 +1,10 @@
 -- Tests for documents and claude_instructions. Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(11);
 
 -- Work on a clean slate for the two names (the local database may already hold the real ones).
-delete from public.documents where name in ('planning-guide', 'owner-goal');
+delete from public.documents where name in ('planning-guide', 'owner-goal', 'evidence-notes');
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'test@example.com');
 
 select is(public.claude_instructions(false), '', 'nothing published: an empty string, not an error');
@@ -26,6 +26,26 @@ select is(public.claude_instructions(true), 'GUIDE v2', 'a missing goal is skipp
 select throws_ok($$insert into public.documents (user_id, name, body) values ('00000000-0000-0000-0000-0000000000a1', 'planning-guide', 'dup')$$,
                  '23505', null, 'one document per name');
 select is((select count(*) from pg_policies where tablename = 'documents'), 1::bigint, 'row level security policy exists');
+
+-- The evidence notes come last, after the guide.
+insert into public.documents (user_id, name, body) values ('00000000-0000-0000-0000-0000000000a1', 'evidence-notes', 'EVIDENCE');
+select is(public.claude_instructions(false), E'GUIDE v2
+
+---
+
+EVIDENCE', 'evidence notes follow the guide');
+insert into public.documents (user_id, name, body) values ('00000000-0000-0000-0000-0000000000a1', 'owner-goal', 'GOAL v2');
+select is(public.claude_instructions(true), E'GOAL v2
+
+---
+
+GUIDE v2
+
+---
+
+EVIDENCE', 'goal, guide, then evidence');
+delete from public.documents where name = 'planning-guide';
+select is(public.claude_instructions(false), 'EVIDENCE', 'a missing guide is skipped without stray separators');
 
 select * from finish();
 rollback;
