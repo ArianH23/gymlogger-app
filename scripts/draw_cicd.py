@@ -74,13 +74,13 @@ arrow(980, 260, 980, 292, STOP[0])
 box(850, 292, 260, 52, STOP, "no: stop with a message", ["\"run the database button first\""], 13)
 
 # ---- lane B: the database (manual)
-panel(830, 390, 700, 270, MANUAL, "Database: only when you click", "GitHub, Actions, \"Deploy database\", Run workflow")
-box(850, 470, 210, 118, MANUAL, "1  First run", ["\"apply\" box NOT ticked", "dry run: shows the list", "changes nothing"])
+panel(830, 390, 700, 270, MANUAL, "Database: only when you click", "GitHub, Actions, \"Update database\", Run workflow")
+box(850, 470, 210, 118, MANUAL, "1  First run", ["\"apply\" box NOT ticked", "dry run: shows the SQL", "changes nothing"])
 arrow(1060, 529, 1090, 529, MANUAL[0])
 box(1090, 470, 210, 118, MANUAL, "2  Second run", ["\"apply\" box ticked", "applies the migrations", "to your real database"])
 arrow(1300, 529, 1330, 529, MANUAL[0])
 box(1330, 470, 180, 118, MANUAL, "3  Same run", ["then deploys the", "watch-pair function", "(in this order)"])
-text(850, 625, "You read the list in run 1, then click again with the box ticked. Afterwards the site check above passes.", 12.5, "400", "#555", style='font-style="italic"')
+text(850, 625, "You read the SQL in run 1, then click again with the box ticked. Afterwards the site check above passes.", 12.5, "400", "#555", style='font-style="italic"')
 text(850, 646, "Why by hand: a migration cannot be undone, and the tests never see your real data.", 12.5, "700", MANUAL[0])
 
 # ---- lane C: the watch (on the PC)
@@ -92,20 +92,18 @@ arrow(1290, 799, 1320, 799, PC[0])
 box(1320, 760, 190, 78, PC, "Wear OS watch", ["adb install -r"], 14)
 
 # ---- secrets
-box(30, 440, 270, 290, KEY, "Secrets (you add them)", [
+box(30, 440, 270, 290, KEY, "Secrets and variables", [
     "repo Settings, Secrets and",
-    "variables, Actions",
+    "variables, Actions (you add)",
     "",
-    "Cloudflare token + account ID",
-    "   used by the site deploy",
+    "3 secrets:",
+    "  Cloudflare token",
+    "  Cloudflare account ID",
+    "  Supabase access token",
     "",
-    "Supabase access token +",
-    "database password",
-    "   used by the site check and",
-    "   the database button",
-    "",
-    "Public, not secret: Supabase",
-    "URL and publishable key",
+    "Variables (public values):",
+    "  Supabase ref, URL, key,",
+    "  DEPLOY_ENABLED (the switch)",
 ])
 
 # ---- legend

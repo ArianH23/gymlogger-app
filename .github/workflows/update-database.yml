@@ -1,0 +1,93 @@
+# Update database: a button you click (GitHub, Actions, "Update database", Run workflow).
+#   "apply" NOT ticked: a dry run. It shows the SQL of every migration that would run and changes nothing.
+#   "apply" ticked:     applies the migrations to your real database, then deploys the watch-pair function.
+# It refuses to apply unless it runs on main and the checks for that exact commit are green.
+# Why by hand: docs/CICD.md.
+name: Update database
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Tick to APPLY the changes to your real database. Leave unticked for a dry run that only shows what would change."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: update-database
+  cancel-in-progress: false
+
+jobs:
+  update-database:
+    name: Update database
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      - name: Only from the main branch
+        if: ${{ inputs.apply }}
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error title=Not main::Changes are only applied from the main branch. Pick 'main' in the Run workflow dialog."
+            exit 1
+          fi
+
+      - name: Link to the project
+        run: supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+
+      # Shows the actual SQL, not just file names, on the run page (Summary) and in the log.
+      - name: Show what would change
+        id: plan
+        run: |
+          out="$(supabase db push --dry-run 2>&1)"
+          echo "$out"
+          files="$(echo "$out" | grep -oE '[0-9]{14}_[A-Za-z0-9_]+\.sql' | sort -u || true)"
+          {
+            echo "## Database changes waiting to be applied"
+            if [ -z "$files" ]; then echo; echo "Nothing: production is up to date."; fi
+            for f in $files; do
+              echo; echo "### $f"; echo; echo '```sql'; cat "supabase/migrations/$f"; echo '```'
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          for f in $files; do echo; echo "=== $f ==="; cat "supabase/migrations/$f"; done
+          echo "pending=$(echo "$files" | grep -c . || true)" >> "$GITHUB_OUTPUT"
+
+      - name: Require green checks for this exact commit
+        if: ${{ inputs.apply }}
+        run: |
+          id="$(gh run list --workflow ci.yml --commit "${{ github.sha }}" --limit 1 --json databaseId --jq '.[0].databaseId')"
+          if [ -z "$id" ] || [ "$id" = "null" ]; then
+            echo "::error title=No checks found::There is no CI run for this commit yet. Push it and wait for the checks."
+            exit 1
+          fi
+          ok="$(gh run view "$id" --json jobs --jq '[.jobs[] | select(.name | test("^(Database tests|Phone app|Importer tests|Watch app)$")) | .conclusion] | (length == 4 and all(. == "success"))')"
+          if [ "$ok" != "true" ]; then
+            echo "::error title=Checks are not green::The four checks for this commit are not all green (or still running). Wait for them, then run this again."
+            exit 1
+          fi
+
+      - name: Apply the migrations
+        if: ${{ inputs.apply && steps.plan.outputs.pending != '0' }}
+        run: echo y | supabase db push
+
+      - name: Deploy the watch-pair function
+        if: ${{ inputs.apply }}
+        run: supabase functions deploy watch-pair --project-ref "${{ vars.SUPABASE_PROJECT_REF }}" --no-verify-jwt
+
+      - name: Check that production is now up to date
+        if: ${{ inputs.apply }}
+        run: |
+          out="$(supabase db push --dry-run 2>&1)"
+          echo "$out"
+          echo "$out" | grep -qi "up to date"
+          echo "Applied. Now re-run the 'Deploy the site' job of the latest CI run if it stopped on 'database changes are waiting'." >> "$GITHUB_STEP_SUMMARY"

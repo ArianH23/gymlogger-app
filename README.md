@@ -41,6 +41,7 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
+| `.github/workflows/` | CI (`ci.yml`) and the "Update database" button (`update-database.yml`) |
 | `watch/` | the Wear OS app: `data/` (API, models, sync, storage), `ui/` (screens), `AppViewModel.kt`, `RestAlarm.kt`, `OngoingWorkout.kt` |
 | `importer/` | Hevy CSV importer (`hevy_import.py`), exercise catalog (`exercises.csv`), pytest tests |
 | `scripts/` | `publish_guide.py` (Claude's instructions into the database), `draw_schema.py`, `cut_faces.py`, `md_to_pdf.py`, `watch_pairing_check.py` and `watch_api_check.py` (play the watch over plain HTTP) |
@@ -137,6 +138,12 @@ is safe (deterministic ids) and never overwrites exercise settings you edited. T
 
 **Change the faces.** Put the new expression sheet in `docs/` and run `python scripts/cut_faces.py "<sheet>.png"`
 (needs `pip install pillow numpy scipy`). The order on the sheet is great, good, average, weak, poor.
+
+## CI/CD (automatic checks and deploys)
+
+GitHub runs the checks on every push (database tests, phone app, importer, watch compiles) and can put the phone app live
+by itself; the database is updated with a button you click, and the watch is installed from your PC over Wi-Fi.
+Picture: `docs/cicd.png`. Guide, secrets and how to switch it on: `docs/CICD.md`. Files: `.github/workflows/`.
 
 ## What happens when you press Finish
 
