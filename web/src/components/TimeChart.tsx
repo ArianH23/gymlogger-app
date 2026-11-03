@@ -7,6 +7,7 @@ export type Series = {
   label: string
   unit: string // shown after the number, e.g. "kg"
   lowerIsBetter?: boolean
+  group?: string // with several groups, a row of group chips comes first (Body, Circumference...)
   points: (Point & { sub?: string })[] // oldest first
 }
 
@@ -26,11 +27,14 @@ const inRange = (t: number, months: number | null) => {
   return t >= cutoff.getTime()
 }
 
-/** Metric chips, the selected point, the chart and the time range, for one or more series over time. */
+/** Metric chips (in groups when there are many), the selected point, the chart and the time range, for one or more series over time. */
 export default function TimeChart({ series, name }: { series: Series[]; name: string }) {
   const usable = useMemo(() => series.filter((s) => s.points.length > 0), [series])
-  const [seriesId, setSeriesId] = useState(usable[0]?.id)
-  const current = usable.find((s) => s.id === seriesId) ?? usable[0]
+  const groups = useMemo(() => [...new Set(usable.map((s) => s.group).filter((g): g is string => !!g))], [usable])
+  const [groupId, setGroupId] = useState<string | undefined>(usable[0]?.group)
+  const visible = groups.length > 1 ? usable.filter((s) => s.group === groupId) : usable
+  const [seriesId, setSeriesId] = useState<string | undefined>(usable[0]?.id)
+  const current = visible.find((s) => s.id === seriesId) ?? visible[0]
 
   const [range, setRange] = useState<Range>(() => {
     const first = usable[0]
@@ -48,8 +52,25 @@ export default function TimeChart({ series, name }: { series: Series[]; name: st
 
   return (
     <>
+      {groups.length > 1 && (
+        <div className="chips groups" role="tablist" aria-label="Group of measurements">
+          {groups.map((g) => (
+            <button
+              key={g}
+              className={`chip${g === groupId ? ' on' : ''}`}
+              onClick={() => {
+                setGroupId(g)
+                setSeriesId(usable.find((s) => s.group === g)?.id)
+                setPicked(null)
+              }}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="chips" role="tablist" aria-label="Measurement">
-        {usable.map((s) => (
+        {visible.map((s) => (
           <button
             key={s.id}
             className={`chip${s.id === current.id ? ' on' : ''}`}

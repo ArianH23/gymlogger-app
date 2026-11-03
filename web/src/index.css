@@ -311,3 +311,18 @@ button.outline { width: 100%; padding: 16px; margin-bottom: 14px; border: 2px so
 .pair-code { margin: 18px 0 6px; text-align: center; font-size: 60px; font-weight: 800; letter-spacing: 6px; font-variant-numeric: tabular-nums; }
 .pair-code.expired { color: var(--muted); font-size: 34px; letter-spacing: 0; }
 .pair-left { text-align: center; margin: 0 0 18px; }
+
+/* Body measurements */
+details.group { border-top: 1px solid var(--surface-2); padding: 2px 0 4px; margin-bottom: 10px; }
+details.group summary { cursor: pointer; padding: 12px 0; font-weight: 700; font-size: 17px; list-style: none; }
+details.group summary::-webkit-details-marker { display: none; }
+details.group summary::after { content: '›'; float: right; color: var(--muted); font-size: 22px; line-height: 1; transition: transform 0.15s; }
+details.group[open] summary::after { transform: rotate(90deg); }
+details.group .two-cols { margin-bottom: 8px; }
+.chips.groups { padding-bottom: 2px; }
+.chips.groups .chip { background: transparent; border: 1px solid var(--surface-2); }
+.chips.groups .chip.on { background: var(--surface-2); color: var(--text); border-color: var(--muted); }
+.table.measures .table-row { grid-template-columns: 1.4fr 1fr 1.1fr; font-size: 15px; }
+.measure-group { margin: 14px 0 0; padding-top: 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.height-row { display: flex; justify-content: space-between; align-items: center; }
+.height-card .note { margin: 8px 0 0; }

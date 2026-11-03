@@ -1,55 +1,102 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import TimeChart, { type Series } from '../components/TimeChart'
 import { useNav } from '../lib/nav'
-import { dayToTime, loadBody, type Checkin, type WeekRow } from '../lib/checkins'
+import { dayToTime, FIELDS, loadBody, saveHeight, type BodyData, type Checkin, type LatestRow, type MetricRow } from '../lib/checkins'
 import { formatDate, formatDayMonth, num } from '../lib/format'
 import { createWatchPairing, type Pairing } from '../lib/pairing'
 import PairWatchSheet from '../components/PairWatchSheet'
 
-const series = (checkins: Checkin[]): Series[] => {
-  const asc = [...checkins].reverse()
-  const build = (id: string, label: string, unit: string, pick: (c: Checkin) => number | null): Series => ({
-    id,
-    label,
-    unit,
-    points: asc.flatMap((c) => (pick(c) === null ? [] : [{ t: dayToTime(c.checkedOn), v: pick(c)!, sub: c.notes ?? undefined }])),
-  })
-  return [
-    build('weight', 'Bodyweight', 'kg', (c) => c.bodyweightKg),
-    build('waist', 'Waist', 'cm', (c) => c.waistCm),
-    build('sleep', 'Sleep', 'h', (c) => c.sleepHours),
-    build('fat', 'Body fat', '%', (c) => c.bodyFatPct),
-  ]
+/** One chart series per metric, from the view body_metrics (stored measurements and calculated ones), oldest point first. */
+const buildSeries = (metrics: MetricRow[], checkins: Checkin[]): Series[] => {
+  const notesByDay = new Map(checkins.filter((c) => c.notes).map((c) => [c.checkedOn, c.notes as string]))
+  const byMetric = new Map<string, Series & { ord: number }>()
+  for (const m of metrics) {
+    let s = byMetric.get(m.metric)
+    if (!s) {
+      s = { id: m.metric, label: m.label, unit: m.unit === 'x' ? '' : m.unit, group: m.group, points: [], ord: m.ord }
+      byMetric.set(m.metric, s)
+    }
+    s.points.push({ t: dayToTime(m.day), v: m.value, sub: notesByDay.get(m.day) })
+  }
+  return [...byMetric.values()].sort((a, b) => a.ord - b.ord)
 }
 
-const entrySummary = (c: Checkin) =>
-  [
-    c.bodyweightKg !== null && `${num(c.bodyweightKg)} kg`,
-    c.waistCm !== null && `waist ${num(c.waistCm)} cm`,
-    c.sleepHours !== null && `sleep ${num(c.sleepHours)} h`,
-    c.bodyFatPct !== null && `${num(c.bodyFatPct)}% fat`,
-  ]
-    .filter(Boolean)
-    .join(' · ') || 'no numbers'
+/** "Bodyweight 78.5 kg · Waist 80 cm ... + 3 more": the first few numbers of a check-in. */
+const entrySummary = (c: Checkin) => {
+  const filled = FIELDS.filter((f) => c.values[f.col] !== null)
+  if (filled.length === 0) return 'no numbers'
+  const shown = filled.slice(0, 4).map((f) => `${f.label.split(' (')[0]} ${num(c.values[f.col])}${f.unit === '%' ? '%' : ' ' + f.unit}`)
+  return shown.join(' · ') + (filled.length > 4 ? ` · +${filled.length - 4} more` : '')
+}
+
+const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`
+
+/** The measurements table: every metric's latest value against about four weeks earlier, grouped. */
+function Measurements({ latest }: { latest: LatestRow[] }) {
+  const groups = [...new Set(latest.map((l) => l.group))]
+  return (
+    <div className="card table measures">
+      <div className="table-row head">
+        <span>Measurement</span>
+        <span>Latest</span>
+        <span>vs ~4 weeks</span>
+      </div>
+      {groups.map((g) => (
+        <div key={g}>
+          <div className="measure-group">{g}</div>
+          {latest
+            .filter((l) => l.group === g)
+            .map((l) => {
+              const unit = l.unit === 'x' ? '' : l.unit === '%' ? '%' : ` ${l.unit}`
+              return (
+                <div className="table-row" key={l.metric} title={`as of ${formatDate(`${l.latestOn}T12:00:00`)}`}>
+                  <span>{l.label}</span>
+                  <span>
+                    {num(l.latestValue)}
+                    {unit}
+                  </span>
+                  <span className="muted">
+                    {l.change === null ? '–' : `${l.change > 0 ? '▲' : l.change < 0 ? '▼' : '＝'} ${signed(l.change)}${unit}`}
+                  </span>
+                </div>
+              )
+            })}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function Body() {
   const { push } = useNav()
-  const [checkins, setCheckins] = useState<Checkin[] | null>(null)
-  const [weeks, setWeeks] = useState<WeekRow[]>([])
-  const [offline, setOffline] = useState(false)
+  const [data, setData] = useState<(BodyData & { offline: boolean }) | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     loadBody()
-      .then((r) => {
-        setCheckins(r.checkins)
-        setWeeks(r.weeks)
-        setOffline(r.offline)
-      })
+      .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : String(e?.message ?? e)))
   }, [])
+  useEffect(load, [load])
 
-  const all = useMemo(() => series(checkins ?? []), [checkins])
+  const series = useMemo(() => (data ? buildSeries(data.metrics, data.checkins) : []), [data])
+
+  // height, once: it only feeds the ratios that need it
+  const [editingHeight, setEditingHeight] = useState(false)
+  const [heightText, setHeightText] = useState('')
+  const [heightError, setHeightError] = useState<string | null>(null)
+  async function submitHeight() {
+    const v = parseFloat(heightText.replace(',', '.'))
+    if (Number.isNaN(v) || v < 100 || v > 250) return setHeightError('Height in cm, between 100 and 250.')
+    try {
+      await saveHeight(v)
+      setEditingHeight(false)
+      setHeightError(null)
+      load()
+    } catch (e) {
+      setHeightError(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   const [pairing, setPairing] = useState<Pairing | null>(null)
   const [pairBusy, setPairBusy] = useState(false)
@@ -65,6 +112,8 @@ export default function Body() {
     setPairBusy(false)
   }
 
+  const checkins = data?.checkins ?? null
+
   return (
     <>
       <div className="title-row">
@@ -74,14 +123,62 @@ export default function Body() {
         </button>
       </div>
       {error && <div className="card error">Could not load: {error}</div>}
-      {!checkins && !error && <p className="muted">Loading…</p>}
-      {offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
+      {!data && !error && <p className="muted">Loading…</p>}
+      {data?.offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
 
-      {checkins && (
+      {data && checkins && (
         <>
-          <TimeChart key={checkins.length} series={all} name="your body" />
+          <TimeChart key={data.metrics.length} series={series} name="your body" />
 
-          {weeks.length > 0 && (
+          <h2>Measurements</h2>
+          <div className="card height-card">
+            {editingHeight ? (
+              <>
+                <label>
+                  Height (cm)
+                  <input inputMode="decimal" autoFocus value={heightText} onChange={(e) => setHeightText(e.target.value)} placeholder="170" />
+                </label>
+                {heightError && <p className="error">{heightError}</p>}
+                <button className="primary" onClick={submitHeight}>
+                  Save height
+                </button>
+                <button className="link" onClick={() => setEditingHeight(false)}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <div className="height-row">
+                <span>
+                  Height <strong>{data.heightCm === null ? 'not set' : `${num(data.heightCm)} cm`}</strong>
+                </span>
+                <button
+                  className="link"
+                  onClick={() => {
+                    setHeightText(data.heightCm === null ? '' : num(data.heightCm))
+                    setEditingHeight(true)
+                  }}
+                >
+                  {data.heightCm === null ? 'Add' : 'Edit'}
+                </button>
+              </div>
+            )}
+            {data.heightCm === null && !editingHeight && (
+              <p className="muted note">Add your height to get waist / height and the body fat estimate from the tape.</p>
+            )}
+          </div>
+          {data.latest.length > 0 ? (
+            <>
+              <Measurements latest={data.latest} />
+              <p className="muted note">
+                Compared with the latest check-in at least 25 days earlier. “Calculated” rows come from your other numbers: shoulders / waist is your
+                V-taper, and the body fat from the tape is a rough estimate (a few points either way): read its trend, not the number.
+              </p>
+            </>
+          ) : (
+            <p className="muted">No measurements yet. Log a check-in.</p>
+          )}
+
+          {data.weeks.length > 0 && (
             <>
               <h2>Last weeks</h2>
               <div className="card table weeks">
@@ -92,7 +189,7 @@ export default function Body() {
                   <span>Sleep</span>
                   <span>Plan</span>
                 </div>
-                {weeks.map((w) => (
+                {data.weeks.map((w) => (
                   <div className="table-row" key={w.weekStart}>
                     <span>{formatDayMonth(`${w.weekStart}T12:00:00`)}</span>
                     <span>{w.sessions}</span>

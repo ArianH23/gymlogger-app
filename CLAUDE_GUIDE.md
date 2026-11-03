@@ -127,15 +127,27 @@ order by ps.exercise_position, ps.set_no;
 
 ## Step 2b: how the body and recovery are doing
 
-The owner logs weekly check-ins (bodyweight, waist, sleep, body fat, notes). One query gives the last 8 weeks, with
-training next to them:
+The owner logs check-ins: weekly for bodyweight, sleep, resting heart rate and the daily averages of calories, protein and
+steps; roughly monthly for the tape measurements. Every number is optional, and a missing number means "not measured":
+ignore a null, never guess. One query gives the last 8 weeks, with training next to them:
 
 ```sql
 select week_start, sessions, sets, volume_kg, planned_sets, done_sets, met_sets,
-       check_ins, bodyweight_kg, waist_cm, sleep_hours, body_fat_pct, avg_feeling
+       check_ins, bodyweight_kg, waist_cm, sleep_hours, body_fat_pct, avg_feeling,
+       resting_hr_bpm, calories_kcal, protein_g, steps
 from weekly_overview
 order by week_start desc
 limit 8;
+```
+
+All the body numbers at once, each metric's latest value against the check-in from about four weeks earlier
+(`earlier_value` is null until there is a check-in at least 25 days older). It includes the **calculated** rows
+(`grp = 'Calculated'`): shoulders / waist, waist / height, lean mass and a body fat estimate from the tape:
+
+```sql
+select grp, label, unit, latest_value, latest_on, earlier_value, change, change_pct
+from body_latest
+order by ord;
 ```
 
 And how each recent session went, one row each (`met_pct` is the share of planned sets met, `tier` is the label
@@ -174,6 +186,24 @@ How to read it (all of this nudges the plan; none of it replaces what the sets s
   too heavy or the targets badly set, not a bad day. A single low feeling is not a trend; look for 2 or more
   sessions in a row. Sessions with a null `tier` followed no plan (imported or free-form): leave them out of
   any plan-performance judgement.
+- **Tape measurements** (monthly, so do not expect weekly numbers). Tape error is roughly half a centimetre to a
+  centimetre, so react only to a change that shows in two check-ins in a row. The **waist and abdomen trend** is the best
+  fat-loss signal: falling while strength holds is on track. **Shoulders / waist** is the owner's V-taper: a higher ratio is
+  the goal, and at this stage it mostly rises because the waist falls. Arms, chest, thighs and calves are growth signals
+  over months; one smaller number is noise. Falling waist with stable or rising arms and chest is the ideal outcome.
+  Compare left with right: a persistent gap of more than about 1 cm is worth a short note and perhaps an extra
+  unilateral set (general knowledge, moderate confidence).
+- **Body fat.** The owner's own `body_fat_pct` is a scale reading or a guess. The tape estimate (US Navy formula from
+  neck, abdomen and height) is also rough, a few percentage points either way. Use the direction of each; if they
+  disagree, say so instead of choosing one. **Lean mass** (weight x (1 - body fat)) falling together with falling strength
+  means the deficit is too aggressive: say so in the summary.
+- **Nutrition numbers** are averages, often estimated from photos: read them as ranges. Protein near 1.6 g per kg of
+  bodyweight is the target in the evidence notes. Compare calories with the **weight trend over 3 or more weeks**, not
+  with a single week; the rate to aim for is in the goal realism section of the evidence notes. Never suggest an extreme
+  deficit; if loss is faster than that rate while strength drops, suggest eating a little more. Say that calorie advice is
+  general guidance, not medical advice.
+- **Resting heart rate** rising by several beats over two or more check-ins, together with poor sleep or a low plan
+  performance, suggests accumulated fatigue: be conservative that week (general knowledge, low to moderate confidence).
 - **Sleep** averaging under about 6 hours for 2 or more weeks, or a note about illness, injury or a bad week:
   be conservative (hold weights, do not read a rep drop as a reason to deload by itself).
 - **Weight falling fast** (more than about 1% of bodyweight per week) together with strength dropping: say so in

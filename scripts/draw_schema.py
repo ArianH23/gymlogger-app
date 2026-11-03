@@ -26,11 +26,14 @@ T = {
                                            "notes", "used_by_session_id  → sessions"], "user_id · timestamps"),
     "planned_sets": (850, 520, PLAN, ["id  PK", "planned_session_id  → planned_sessions", "exercise_id  → exercises", "exercise_position",
                                        "set_no", "target_weight_kg", "target_reps_min", "target_reps_max", "note"], "user_id · timestamps"),
-    "body_checkins": (1260, 60, BODY, ["id  PK", "checked_on  (one per day)", "bodyweight_kg", "waist_cm", "sleep_hours", "body_fat_pct",
+    "body_checkins": (1260, 60, BODY, ["id  PK", "checked_on  (one per day)", "bodyweight_kg · body_fat_pct", "waist_cm + 12 tape measurements:",
+                                        "  neck, shoulders, chest, abdomen, hips,", "  left/right bicep, forearm, thigh, calf",
+                                        "sleep_hours · resting_hr_bpm", "calories_kcal · protein_g · steps  (daily averages)",
                                         "notes"], STAMPS),
+    "documents": (1260, 330, DOC, ["id  PK", "name  planning-guide / owner-goal", "body  (the text Claude reads)"], "user_id · timestamps"),
+    "body_profile": (1260, 700, BODY, ["user_id  PK  (one row per user)", "height_cm  (for the ratios)"], "created_at · updated_at"),
     "watch_pairings": (1260, 480, WATCH, ["id  PK", "code_hash  (the code is never stored)", "attempts  (dies at 5 wrong)", "expires_at  (10 minutes)",
                                            "used_at", "cancelled_at"], "user_id · created_at"),
-    "documents": (1260, 330, DOC, ["id  PK", "name  planning-guide / owner-goal", "body  (the text Claude reads)"], "user_id · timestamps"),
 }
 
 VIEWS = [
@@ -44,6 +47,8 @@ VIEWS = [
     ("session_plan_performance", "sets that met the plan you followed"),
     ("weekly_overview", "per week: training next to your check-ins"),
     ("session_scores", "per session: % of planned sets met, its tier, your 1-5 feeling"),
+    ("body_metrics", "every body number as a row, plus shoulders/waist, waist/height, lean mass, tape body fat"),
+    ("body_latest", "per body metric: latest value against about 4 weeks earlier"),
 ]
 FUNCS = [
     ("generate_plan(routine)", "progression rules → the automatic plan"),

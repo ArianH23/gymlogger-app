@@ -36,8 +36,8 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (20 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 240 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (21 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 263 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -66,6 +66,15 @@ planned weight or better; sets you didn't log count as not met). One database fu
 At the end you can also tap a **feeling** from 1 (awful) to 5 (great). Claude reads both next to each other: a high score
 with a low feeling means the session cost a lot of recovery; a low score with a high feeling means the plan was too heavy.
 Imported Hevy sessions followed no plan, so they have no score. View: `session_scores`.
+
+## Body measurements
+
+The Body tab and the check-in form cover what Hevy tracks and more: bodyweight, body fat, waist, neck, shoulders, chest,
+abdomen, hips, left and right biceps, forearms, thighs and calves, plus sleep, resting heart rate and the daily averages of
+calories, protein and steps. Every number is optional (empty means "not measured"; the form shows your last value as a grey
+hint, never filled in for you). Height is stored once (Body tab, "Measurements"). The database calculates shoulders / waist
+(your V-taper), waist / height, lean mass and a body fat estimate from the tape (US Navy formula, rough), and shows each
+measurement against about four weeks earlier (`body_metrics`, `body_latest`). Claude reads the same views.
 
 ## One workout, two devices
 
