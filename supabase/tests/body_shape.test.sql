@@ -2,7 +2,7 @@
 -- Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'one@example.com'),
@@ -28,6 +28,10 @@ select is((pg_temp.shape('waist_cm')).closeness, 0.938, 'waist closeness = targe
 select is((pg_temp.shape('neck_cm')).closeness, 1.000, 'a measurement already past its target is capped at closeness 1');
 select is((select count(*) from public.body_shape where user_id = '00000000-0000-0000-0000-0000000000a1'), 4::bigint, 'only measured metrics appear (4 of 14)');
 select is((select count(*) from public.body_shape where user_id = '00000000-0000-0000-0000-0000000000a2'), 0::bigint, 'without a height there is no model target, so no rows');
+
+-- Targets exist for every measurement, measured or not (that is what the target editor shows).
+select is((select count(*) from public.body_target_values where user_id = '00000000-0000-0000-0000-0000000000a1'), 14::bigint, 'a target for each of the 14 measurements once the height is known');
+select is((select target_value from public.body_target_values where user_id = '00000000-0000-0000-0000-0000000000a1' and metric = 'calf_l_cm'), 36.0, 'also for one never measured (calf = 0.2222 x 162 = 36.0)');
 
 -- Your own target replaces the model for that measurement only.
 insert into public.body_targets (user_id, metric, target_value) values ('00000000-0000-0000-0000-0000000000a1', 'waist_cm', 70);
