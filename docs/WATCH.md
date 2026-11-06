@@ -28,6 +28,13 @@ It was built and tested for a Wear OS watch (Wi-Fi), Wear OS 6 and up (minSdk 33
    plan, so a normal set is one glance and one tap on **Log**. The ‹ › beside the set number step through every set of the
    workout, crossing into the next or previous exercise. Logging moves on to the next empty set (in the next exercise when
    this one is done); the last set brings up **"All sets done: finish the workout?"**.
+   **Heavier or lighter?** After a set, the weight of the next set gets a hint from the reps of the set before it against that set's
+   plan range: more reps than the top of the range blinks the number **blue** three times and shows a blue **▲** to the left of it
+   (go heavier); fewer than the bottom blinks it **red** with a red **▼** (go lighter). Inside the range: nothing. The arrow goes away
+   once you move the weight the suggested way. One-sided exercises are judged after both sides, by the lower side; assisted exercises
+   are reversed (more reps = less assistance); bodyweight exercises get no hint; with a single target instead of a range the margin is
+   two reps. The rule is `hintFor` in `data/WorkoutLogic.kt`, on the watch so it works without signal, and it has unit tests
+   (`watchuild.ps1 testDebugUnitTest`).
    For a logged set the buttons are **Save** and **Unlog** (clears it, the row stays); for an empty one **✕** takes the row off.
    Left/right exercises have an L and an R row.
 5. **Rest timer** after each completed set (for left/right: after both sides), by the top of the rep range (150 s up to 10,

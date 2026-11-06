@@ -83,11 +83,11 @@ jobs:
         with:
           packages: "platforms;android-37.0"
       - uses: gradle/actions/setup-gradle@v4
-      - name: "Build the debug app (a check only, nothing is installed or published)"
+      - name: "Unit tests, then build the debug app (a check only, nothing is installed or published)"
         working-directory: watch
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew testDebugUnitTest assembleDebug --no-daemon --stacktrace
 
   deploy-site:
     name: Deploy the site

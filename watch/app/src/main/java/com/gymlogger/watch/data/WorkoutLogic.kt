@@ -120,3 +120,48 @@ fun Workout.nextExercise(exerciseId: String): PlanExercise? {
     val i = plan.indexOfFirst { it.exerciseId == exerciseId }
     return if (i < 0) null else plan.getOrNull(i + 1)
 }
+
+/** Which way the number on the weight wheel should move for the next set. For assisted exercises it is still the number: less assistance = a lower number. */
+enum class WeightHint { UP, DOWN }
+
+/**
+ * Whether the next set should be heavier or lighter, judged by the reps of the set just done against its rep range:
+ *  - more reps than the top of the range: the weight was too light, go up;
+ *  - fewer than the bottom of the range: too heavy, go down;
+ *  - inside the range, nothing.
+ * With a single target number instead of a range (say 12), two reps above it means up and two below means down.
+ * Assisted exercises are reversed: the same reps mean the opposite change of the number (more reps = less assistance).
+ */
+fun hintFor(loadType: String, reps: Int, repsMin: Int?, repsMax: Int?): WeightHint? {
+    val lo = repsMin ?: return null
+    val hi = repsMax ?: lo
+    val raw = if (hi > lo) {
+        when {
+            reps > hi -> WeightHint.UP
+            reps < lo -> WeightHint.DOWN
+            else -> null
+        }
+    } else {
+        when {
+            reps >= lo + 2 -> WeightHint.UP
+            reps <= lo - 2 -> WeightHint.DOWN
+            else -> null
+        }
+    }
+    return if (loadType == "assisted") raw?.let { if (it == WeightHint.UP) WeightHint.DOWN else WeightHint.UP } else raw
+}
+
+/**
+ * The hint for a set that is still to do: from the nearest earlier set of this exercise that is completely logged
+ * (both sides for a one-sided exercise, using the lower side). Null for bodyweight work, for a set already logged,
+ * and when there is no earlier set to judge by.
+ */
+fun Workout.weightHint(ex: PlanExercise, row: Row): WeightHint? {
+    if (ex.loadType == "bodyweight" || loggedAt(ex, row) != null) return null
+    val sides: List<String?> = if (ex.unilateral) listOf("L", "R") else listOf(null)
+    val previous = rows(ex).map { it.setNo }.distinct().filter { it < row.setNo }
+        .lastOrNull { n -> sides.all { s -> loggedAt(ex, Row(n, s)) != null } } ?: return null
+    val reps = sides.mapNotNull { s -> loggedAt(ex, Row(previous, s))?.reps }.minOrNull() ?: return null
+    val target = ex.planSet(previous) ?: ex.sets.lastOrNull() ?: return null
+    return hintFor(ex.loadType, reps, target.targetRepsMin, target.targetRepsMax)
+}

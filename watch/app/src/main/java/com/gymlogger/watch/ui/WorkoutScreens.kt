@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -33,6 +34,7 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.rememberPickerState
 import com.gymlogger.watch.data.PlanExercise
 import com.gymlogger.watch.data.Row
+import com.gymlogger.watch.data.WeightHint
 import com.gymlogger.watch.data.Workout
 import com.gymlogger.watch.data.closestIndex
 import com.gymlogger.watch.data.defaults
@@ -46,6 +48,7 @@ import com.gymlogger.watch.data.rows
 import com.gymlogger.watch.data.setText
 import com.gymlogger.watch.data.stepKg
 import com.gymlogger.watch.data.targetText
+import com.gymlogger.watch.data.weightHint
 import com.gymlogger.watch.data.weightOptions
 import kotlinx.coroutines.delay
 
@@ -205,7 +208,24 @@ fun EditorScreen(
     val startReps = logged?.reps ?: planReps
     val hasWeight = ex.loadType != "bodyweight"
     val weights = remember { weightOptions(startWeight, ex.stepKg()) }
-    val weightWheel = rememberPickerState(initialNumberOfOptions = weights.size, initiallySelectedIndex = weights.closestIndex(startWeight), shouldRepeatOptions = false)
+    val startIndex = remember { weights.closestIndex(startWeight) }
+    val weightWheel = rememberPickerState(initialNumberOfOptions = weights.size, initiallySelectedIndex = startIndex, shouldRepeatOptions = false)
+
+    // After a set: should the weight go up (blue) or down (red) for this one? A few blinks, then an arrow beside the number
+    // until you move the weight the suggested way.
+    val hint = remember { if (hasWeight) workout.weightHint(ex, row) else null }
+    var blinkOn by remember { mutableStateOf(false) }
+    LaunchedEffect(hint) {
+        if (hint != null) repeat(3) {
+            blinkOn = true
+            delay(380)
+            blinkOn = false
+            delay(280)
+        }
+    }
+    val moved = weightWheel.selectedOptionIndex - startIndex
+    val acted = (hint == WeightHint.UP && moved > 0) || (hint == WeightHint.DOWN && moved < 0)
+    val hintColor = if (hint == WeightHint.UP) HintUp else HintDown
     val repsWheel = rememberPickerState(initialNumberOfOptions = MAX_REPS + 1, initiallySelectedIndex = startReps.coerceIn(0, MAX_REPS), shouldRepeatOptions = false)
     var repsFocused by remember { mutableStateOf(!hasWeight) }
 
@@ -230,7 +250,15 @@ fun EditorScreen(
                     selected = !repsFocused,
                     onSelected = { repsFocused = false },
                     contentDescription = { "Weight in kilograms" },
-                    option = { index, selected -> WheelNumber(num(weights[index]), selected, width = 96, unit = if (ex.loadType == "assisted") "assist" else "kg") },
+                    option = { index, selected ->
+                        val centered = index == weightWheel.selectedOptionIndex
+                        WheelNumber(
+                            num(weights[index]), selected, width = 116, unit = if (ex.loadType == "assisted") "assist" else "kg",
+                            arrow = if (centered && hint != null && !acted) (if (hint == WeightHint.UP) "▲" else "▼") else null,
+                            accent = hintColor,
+                            tint = if (centered && blinkOn && hint != null) hintColor else null,
+                        )
+                    },
                 )
             }
             PickerGroupItem(
@@ -257,6 +285,9 @@ fun EditorScreen(
 
 private const val MAX_REPS = 60
 
+private val HintUp = Color(0xFF5AB0FF) // blue: go heavier
+private val HintDown = Color(0xFFFF6B6B) // red: go lighter
+
 /** A "‹" or "›" beside the set number: go to the previous or next set. Dimmed when there is none. */
 @Composable
 private fun StepArrow(symbol: String, onClick: (() -> Unit)?) {
@@ -270,10 +301,19 @@ private fun StepArrow(symbol: String, onClick: (() -> Unit)?) {
 
 /** One value of a wheel with its unit beside it ("40 kg", "6 reps"), so it is always clear which wheel is which. */
 @Composable
-private fun androidx.wear.compose.material3.PickerScope.WheelNumber(text: String, selected: Boolean, width: Int, unit: String) {
-    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+private fun androidx.wear.compose.material3.PickerScope.WheelNumber(
+    text: String,
+    selected: Boolean,
+    width: Int,
+    unit: String,
+    arrow: String? = null, // a hint arrow to the left of the number
+    accent: Color = Color.Unspecified, // the arrow's colour
+    tint: Color? = null, // while blinking, the number takes this colour
+) {
+    val color = tint ?: if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Box(Modifier.height(36.dp).width(width.dp), contentAlignment = Alignment.Center) {
         LayoutRow(verticalAlignment = Alignment.Bottom) {
+            if (arrow != null) Text(arrow, style = MaterialTheme.typography.labelMedium, color = accent, modifier = Modifier.padding(end = 5.dp, bottom = 6.dp))
             Text(text, style = MaterialTheme.typography.numeralSmall, color = color)
             Text(" $unit", style = MaterialTheme.typography.labelSmall, color = color, modifier = Modifier.padding(bottom = 5.dp))
         }
