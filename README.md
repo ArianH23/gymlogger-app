@@ -11,6 +11,7 @@ from your history; the app shows that plan next to what you did last time, and r
 
 The full table/view/function diagram is `docs/schema.png` (redraw with `python scripts/draw_schema.py`, then render
 the SVG to PNG with a headless browser).
+The step-by-step flow from tapping Finish to a plan made by Claude is `docs/claude-flow.png` (`scripts/draw_claude_flow.py`).
 
 ## How it fits together
 
