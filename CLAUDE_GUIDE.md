@@ -162,6 +162,22 @@ from body_shape
 order by closeness;
 ```
 
+Which muscles the training actually reached. Every exercise is tagged with the muscles it works; a working set counts 1 for
+each main (primary) muscle and 0.5 for each helping (secondary) one, warm-ups excluded, a left/right pair as one set. These
+are the weighted sets per muscle per week (`share` = its part of that week's total; a muscle with no row got no sets). Use it
+to see which muscle is under-trained next to the goal, and suggest more sets for it rather than restructuring the routines.
+The evidence notes give no exact number of sets, so do not invent a target:
+
+```sql
+select week_start, label, sets, share
+from weekly_muscles
+where week_start >= current_date - 28
+order by week_start desc, sets desc;
+```
+
+`session_muscles` (per session) and `monthly_muscles` have the same shape. `muscle_defs()` lists all 16 muscles, so you can
+spot the ones missing from the results.
+
 And how each recent session went, one row each (`met_pct` is the share of planned sets met, `tier` is the label
 the app shows, `feeling` is the owner's own 1-5 tap at the end of the session):
 

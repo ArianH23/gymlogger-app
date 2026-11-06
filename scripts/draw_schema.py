@@ -33,6 +33,7 @@ T = {
     "documents": (1260, 330, DOC, ["id  PK", "name  planning-guide / owner-goal", "body  (the text Claude reads)"], "user_id · timestamps"),
     "body_profile": (1260, 700, BODY, ["user_id  PK  (one row per user)", "height_cm  (for the ratios)"], "created_at · updated_at"),
     "body_targets": (1260, 820, BODY, ["user_id + metric  PK", "target_value  (cm; your own target for one", "  of the 14 measurements)"], "updated_at"),
+    "exercise_muscles": (30, 800, CAT, ["exercise_id  → exercises  +  muscle  (PK)", "role  primary (1 per set) / secondary (0.5)"], "user_id"),
     "watch_pairings": (1260, 480, WATCH, ["id  PK", "code_hash  (the code is never stored)", "attempts  (dies at 5 wrong)", "expires_at  (10 minutes)",
                                            "used_at", "cancelled_at"], "user_id · created_at"),
 }
@@ -52,6 +53,9 @@ VIEWS = [
     ("body_latest", "per body metric: latest value against about 4 weeks earlier"),
     ("body_target_values", "the target for each of the 14 measurements (yours, or the model scaled to your height)"),
     ("body_shape", "each measured part against its target: gap and closeness"),
+    ("session_muscles", "per session and muscle: weighted sets and share of the session"),
+    ("weekly_muscles", "the same muscle sets, summed per week"),
+    ("monthly_muscles", "the same muscle sets, summed per month"),
 ]
 FUNCS = [
     ("generate_plan(routine)", "progression rules → the automatic plan"),
@@ -67,8 +71,9 @@ FUNCS = [
     ("sync_workout(json) / open_workout()", "share the workout in progress between phone and watch"),
     ("session_tier(pct)", "great / good / average / weak / poor"),
     ("shape_defaults()", "the model: each measurement as a share of height, grow or shrink"),
+    ("muscle_defs() / exercise_muscle_defaults()", "the 16 muscles, and the standard muscle tags by exercise name"),
     ("create_watch_pairing() / claim_watch_pairing(code)", "sign the watch in with a 6-digit code"),
-    ("round_to_step · deload_weight · set_updated_at · workout_json · watch_code_hash", "small helpers"),
+    ("round_to_step · deload_weight · set_updated_at · workout_json · watch_code_hash · tag_new_exercise", "small helpers"),
 ]
 
 box = {}
@@ -135,7 +140,7 @@ legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 70}" width="1580
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="{H}" viewBox="0 0 1640 {H}" font-family="Segoe UI, Arial, sans-serif">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#444"/></marker></defs>
 <rect width="1640" height="{H}" fill="#fff"/>
-<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 22 functions</text>
+<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 25 functions</text>
 {"".join(arrows)}{tables}{p1}{p2}{legend}</svg>'''
 
 out = Path(__file__).resolve().parent.parent / "docs" / "schema.svg"

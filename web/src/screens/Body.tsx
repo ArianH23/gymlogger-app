@@ -5,6 +5,7 @@ import { dayToTime, FIELDS, loadBody, saveHeight, type BodyData, type Checkin, t
 import { formatDate, formatDayMonth, num } from '../lib/format'
 import { createWatchPairing, type Pairing } from '../lib/pairing'
 import PairWatchSheet from '../components/PairWatchSheet'
+import MusclePeriods from '../components/MusclePeriods'
 
 /** One chart series per metric, from the view body_metrics (stored measurements and calculated ones), oldest point first. */
 const buildSeries = (metrics: MetricRow[], checkins: Checkin[]): Series[] => {
@@ -136,6 +137,8 @@ export default function Body() {
               <span className="muted">Your measurements as a figure over the target, and the gap for each part.</span>
             </button>
           )}
+
+          <MusclePeriods />
 
           <h2>Measurements</h2>
           <div className="card height-card">

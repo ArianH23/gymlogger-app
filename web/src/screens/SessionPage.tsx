@@ -5,6 +5,9 @@ import { useNav } from '../lib/nav'
 import { formatDate, num } from '../lib/format'
 import { loadScores, type Score } from '../lib/score'
 import ScoreBadge from '../components/ScoreBadge'
+import MuscleBars from '../components/MuscleBars'
+import MuscleFigure from '../components/MuscleFigure'
+import { loadSessionMuscles, type MuscleRow } from '../lib/muscles'
 
 type SetRow = {
   exercise_id: string
@@ -90,6 +93,25 @@ export default function SessionPage({ id }: { id: string }) {
   const [data, setData] = useState<Loaded | null>(null)
   const [offline, setOffline] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [muscles, setMuscles] = useState<MuscleRow[]>([])
+
+  // the muscles are a bonus like the score: a failure here never blocks the page; the last copy is kept for offline use
+  useEffect(() => {
+    const key = `gl_session_muscles_${id}`
+    loadSessionMuscles(id)
+      .then((m) => {
+        setMuscles(m)
+        try {
+          localStorage.setItem(key, JSON.stringify(m))
+        } catch {
+          // storage full: still works online
+        }
+      })
+      .catch(() => {
+        const saved = localStorage.getItem(key)
+        if (saved) setMuscles(JSON.parse(saved) as MuscleRow[])
+      })
+  }, [id])
 
   useEffect(() => {
     const key = `gl_session_${id}`
@@ -147,6 +169,14 @@ export default function SessionPage({ id }: { id: string }) {
           </div>
           <ScoreBadge score={data.score} size="large" />
           {s.notes && <div className="card">{s.notes}</div>}
+          {muscles.length > 0 && (
+            <div className="card">
+              <h2 className="card-h">Muscles worked</h2>
+              <MuscleFigure rows={muscles} />
+              <MuscleBars rows={muscles} />
+              <p className="muted note">Weighted sets: a working set counts 1 for each main muscle and half for each helping muscle.</p>
+            </div>
+          )}
 
           {data.blocks.map((b) => (
             <section className="card exercise" key={b.exerciseId}>

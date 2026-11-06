@@ -7,6 +7,8 @@ import { useNav } from '../lib/nav'
 import { supabase } from '../lib/supabase'
 import ExercisePicker from '../components/ExercisePicker'
 import FinishSheet from '../components/FinishSheet'
+import MuscleTags from '../components/MuscleTags'
+import { loadExerciseMuscles, type ExerciseMuscle } from '../lib/muscles'
 import { createRoutine, suggestRoutineName } from '../lib/routines'
 import type { ExerciseRow } from '../lib/exerciseList'
 import { num, targetText } from '../lib/format'
@@ -80,6 +82,14 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const [rest, setRest] = useState<Rest | null>(null)
   const [picking, setPicking] = useState(false)
   const [askFinish, setAskFinish] = useState(false)
+  const [muscles, setMuscles] = useState<Record<string, ExerciseMuscle[]>>({})
+
+  // which muscles each exercise works: a bonus, kept on the phone so it shows offline too
+  useEffect(() => {
+    loadExerciseMuscles()
+      .then(setMuscles)
+      .catch(() => undefined)
+  }, [])
 
   // If this workout was finished or thrown away on another device, leave it.
   const seen = useRef(false)
@@ -244,6 +254,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
               <button className="ex-title" onClick={() => push({ type: 'exercise', id: ex.exerciseId })}>
                 {ex.name} <span aria-hidden>›</span>
               </button>
+              <MuscleTags muscles={muscles[ex.exerciseId]} />
               {setNos.map((setNo) => {
                 const planSet = ex.sets.find((s) => s.setNo === setNo)
                 return (

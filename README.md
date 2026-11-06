@@ -37,8 +37,8 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (21 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 263 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (24 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 301 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -83,6 +83,16 @@ measurement as a share of your height (shoulders 72%, waist 44%, thighs 34%...),
 `body_target_values`, `body_shape`). You can set your own target for any measurement (`body_targets`). A part you grow is
 closer the nearer you are to it, a part you shrink (waist, abdomen) the other way round, capped at 100%. Wrist and ankle
 are stored too, for a future estimate of your natural ceiling.
+
+## Muscles
+
+Every exercise is tagged with the muscles it works, 16 in all (chest, three parts of the shoulder, lats, upper and lower back,
+biceps, triceps, forearms, abs, glutes, quads, hamstrings, adductors, calves): main muscles and helping ones (`exercise_muscles`;
+the standard tags are in `exercise_muscle_defaults()`, and a new exercise with a catalog name is tagged automatically). A working
+set counts 1 for each main muscle and 0.5 for each helping one (warm-ups do not count; a left/right pair is one set). The
+database sums that per session, per week and per month (`session_muscles`, `weekly_muscles`, `monthly_muscles`). The phone shows
+it as bars plus a front and back figure with the worked muscles painted in: on each session, on the Body tab by week and by
+month, and as tags under each exercise (in the workout and on its page).
 
 ## One workout, two devices
 

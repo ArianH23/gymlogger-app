@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import LineChart, { type Point } from '../components/LineChart'
 import { Page } from '../components/Page'
 import { useNav } from '../lib/nav'
+import MuscleTags from '../components/MuscleTags'
+import { loadExerciseMuscles, type ExerciseMuscle } from '../lib/muscles'
 import { formatDate, formatDayMonth, kgText, num } from '../lib/format'
 import {
   loadExerciseData,
@@ -179,6 +181,13 @@ export default function ExercisePage({ id }: { id: string }) {
   const [offline, setOffline] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('stats')
+  const [muscles, setMuscles] = useState<ExerciseMuscle[] | undefined>(undefined)
+
+  useEffect(() => {
+    loadExerciseMuscles()
+      .then((m) => setMuscles(m[id]))
+      .catch(() => undefined) // a bonus: the page works without it
+  }, [id])
 
   useEffect(() => {
     loadExerciseData(id)
@@ -216,6 +225,7 @@ export default function ExercisePage({ id }: { id: string }) {
       {data && (
         <>
           {subtitle && <p className="muted subtitle">{subtitle}</p>}
+          <MuscleTags muscles={muscles} />
           {offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
           <div className="segmented" role="tablist">
             {(['stats', 'records', 'history'] as Tab[]).map((t) => (
