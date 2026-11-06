@@ -150,6 +150,18 @@ from body_latest
 order by ord;
 ```
 
+How the owner's shape compares with the target physique, one row per measured part (`gap` = target minus
+current in cm, negative means it should shrink; `closeness` is 0 to 1, capped at 1). The targets are a **model**
+(each measurement as a share of height, a lean, wide-shouldered build), not anyone's real numbers,
+and the owner can override any of them (`target_is_custom`). Treat a part that is past its target as done, not as
+something to push further. The V-taper to watch is shoulders / waist (in `body_latest`, `grp = 'Calculated'`):
+
+```sql
+select label, current_value, target_value, gap, closeness, target_is_custom
+from body_shape
+order by closeness;
+```
+
 And how each recent session went, one row each (`met_pct` is the share of planned sets met, `tier` is the label
 the app shows, `feeling` is the owner's own 1-5 tap at the end of the session):
 

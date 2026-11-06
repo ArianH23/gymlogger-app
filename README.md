@@ -76,6 +76,13 @@ hint, never filled in for you). Height is stored once (Body tab, "Measurements")
 (your V-taper), waist / height, lean mass and a body fat estimate from the tape (US Navy formula, rough), and shows each
 measurement against about four weeks earlier (`body_metrics`, `body_latest`). Claude reads the same views.
 
+**Shape vs target** (Body tab, once your height is set): a front-view figure drawn from your tape measurements, with a target
+figure on top, and a table of the gap for each part of the body. The target is a model, not anyone's real numbers: each
+measurement as a share of your height (shoulders 72%, waist 44%, thighs 34%...), computed in the database (`shape_defaults()`,
+`body_target_values`, `body_shape`). You can set your own target for any measurement (`body_targets`). A part you grow is
+closer the nearer you are to it, a part you shrink (waist, abdomen) the other way round, capped at 100%. Wrist and ankle
+are stored too, for a future estimate of your natural ceiling.
+
 ## One workout, two devices
 
 The workout in progress lives in the database, so you can start on the watch and carry on on the phone (or the other

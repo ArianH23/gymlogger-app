@@ -11,6 +11,8 @@ export type View =
   | { type: 'routine'; id: string }
   | { type: 'checkinForm'; id?: string } // no id = new check-in
   | { type: 'sessionEdit'; id: string }
+  | { type: 'shape' } // your measurements against the target figure
+  | { type: 'shapeTargets' }
 
 type Nav = {
   stack: View[]

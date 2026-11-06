@@ -130,6 +130,13 @@ export default function Body() {
         <>
           <TimeChart key={data.metrics.length} series={series} name="your body" />
 
+          {data.heightCm !== null && (
+            <button className="card list-item" onClick={() => push({ type: 'shape' })}>
+              <span className="routine-title">Shape vs target</span>
+              <span className="muted">Your measurements as a figure over the target, and the gap for each part.</span>
+            </button>
+          )}
+
           <h2>Measurements</h2>
           <div className="card height-card">
             {editingHeight ? (

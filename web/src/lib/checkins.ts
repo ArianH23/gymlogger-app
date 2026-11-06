@@ -30,6 +30,8 @@ export const FIELDS: Field[] = [
   { col: 'thigh_r_cm', label: 'Right thigh', unit: 'cm', group: 'Circumference', min: 30, max: 120 },
   { col: 'calf_l_cm', label: 'Left calf', unit: 'cm', group: 'Circumference', min: 20, max: 70 },
   { col: 'calf_r_cm', label: 'Right calf', unit: 'cm', group: 'Circumference', min: 20, max: 70 },
+  { col: 'wrist_cm', label: 'Wrist', unit: 'cm', group: 'Circumference', min: 10, max: 30 },
+  { col: 'ankle_cm', label: 'Ankle', unit: 'cm', group: 'Circumference', min: 15, max: 40 },
   { col: 'sleep_hours', label: 'Sleep (h per night)', unit: 'h', group: 'Recovery', min: 0, max: 24 },
   { col: 'resting_hr_bpm', label: 'Resting heart rate', unit: 'bpm', group: 'Recovery', min: 30, max: 120 },
   { col: 'calories_kcal', label: 'Calories per day', unit: 'kcal', group: 'Nutrition', min: 500, max: 10000 },
