@@ -19,8 +19,11 @@ The step-by-step flow from tapping Finish to a plan made by Claude is `docs/clau
  phone (PWA)  ─┐                    Supabase (Postgres, one real project)                      claude.ai
                ├─ sync_workout ──►  sessions, sets, live workout ... (row level security: only you)
  watch (Wear) ─┘                                │ Finish
-                                                ├─► finish_session ─► generate_plan (automatic plan)
- watch pairing: phone makes a code ─► watch-pair function ─► a login      └─► request_claude_plan ──►  scheduled task "GymLogger planner"
+                                                └─► finish_session ─► generate_plan (automatic plan)
+
+ watch pairing: phone makes a code ─► watch-pair function ─► a login
+
+ "Plan with Claude" button ─► request_routine_plan ────────────────────────►  scheduled task "GymLogger planner"
                                                                                                          │ reads  claude_instructions(), history, check-ins
  shows the plan  ◄── workout_plan / workout_start ◄── planned_sessions ◄── submit_plan ◄────────────────┘ writes the plan
 ```
@@ -175,9 +178,12 @@ Picture: `docs/cicd.png`. Guide, secrets and how to switch it on: `docs/CICD.md`
 ## What happens when you press Finish
 
 1. The workout (with your 1-5 feeling) is saved on the device, then `sync_workout` sends it and finishes the session.
-2. `finish_session` marks the plan you followed as used, writes the new **automatic plan** (`generate_plan`), and
-   asks Claude for a plan (`request_claude_plan`, once per session, only for app sessions with a routine).
-3. About 30 seconds later the scheduled task has called `submit_plan`. A **Claude plan beats the automatic one**.
+2. `finish_session` marks the plan you followed as used and writes the new **automatic plan** (`generate_plan`). It does not
+   ask Claude: that is on demand.
+3. On the day you will train a routine you tap **Plan with Claude** on it and confirm. `request_routine_plan` asks the scheduled
+   task (a second tap within 2 minutes is ignored). Claude reads your last 6 sessions of any routine, that routine's own
+   history and your check-ins, then calls `submit_plan`. About 30 seconds later the button stops saying "Claude is planning..."
+   and the routine shows **Claude plan ready**. A **Claude plan beats the automatic one**.
 4. If you edit a routine afterwards, `workout_plan` keeps Claude's targets for exercises that remain, drops removed
    ones and appends new ones from the automatic plan.
 

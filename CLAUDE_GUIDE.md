@@ -18,10 +18,12 @@ routines below only to serve it.
 ## The job
 
 You are connected to the owner's Supabase project (GymLogger) through the Supabase connector. Your job: read
-the training history, decide the targets for the **next session of one routine**, and write them with the
-database function `submit_plan`. The owner logs every set in a phone app; you do the planning.
+the training history, decide the targets for the **session of one routine the owner is about to do**, and write
+them with the database function `submit_plan`. The owner logs every set in a phone app; you do the planning.
+You are asked on demand: the owner taps "Plan with Claude" on a routine on the day he will train it, so the plan should
+fit what he has done since that routine last ran (the other routines, sleep, check-ins), not only that routine's own history.
 
-When asked "plan my next Workout B" (or A / C), follow steps 1 to 5. Do all of it without asking
+When asked to plan Workout B (or A / C), follow steps 1 to 5. Do all of it without asking
 questions unless something is genuinely ambiguous.
 
 ## Rules for this job
@@ -71,7 +73,35 @@ order by rx.position;
 
 ## Step 2: what happened recently
 
-The last 4 finished sessions of the routine, every set:
+First the big picture: the last 6 finished sessions of **any** routine, newest first (about two rounds of A, B, C).
+This shows what he did since this routine last ran, which exercises overlap, and how the sessions went:
+
+```sql
+select s.started_at::date as day, current_date - s.started_at::date as days_ago, s.title,
+       sc.met_pct, sc.tier, sc.feeling
+from sessions s
+left join session_scores sc on sc.session_id = s.id
+where s.ended_at is not null and s.deleted_at is null
+order by s.started_at desc limit 6;
+```
+
+The sets of those same 6 sessions (every exercise, so you can see which muscles were worked and how recently; the
+muscle totals are in step 2b):
+
+```sql
+with recent as (
+  select id, title, started_at from sessions
+  where ended_at is not null and deleted_at is null
+  order by started_at desc limit 6)
+select r.started_at::date as day, r.title, e.name as exercise, s.set_no, s.side, s.weight_kg, s.reps, s.is_warmup
+from recent r
+join sets s on s.session_id = r.id and s.deleted_at is null
+join exercises e on e.id = s.exercise_id
+order by r.started_at desc, e.name, s.set_no, s.side;
+```
+
+Then the routine's own history, which is what progression is judged from (it can reach further back than those 6
+sessions). The last 4 finished sessions of the routine, every set:
 
 ```sql
 with last_sessions as (
@@ -112,8 +142,8 @@ where e.name = 'Bench Press (Dumbbell)'
 order by h.session_rank, h.set_no;
 ```
 
-The automatic fallback plan (the simple rules; it is what the app shows if you don't write one). Use it as a
-reference, you may deviate with a reason:
+The automatic fallback plan (the simple rules, written when the routine was last finished; it is what the app shows
+if you don't write one). Use it as a reference, you may deviate with a reason:
 
 ```sql
 select e.name as exercise, ps.exercise_position, ps.set_no, ps.target_weight_kg,
@@ -256,6 +286,10 @@ several sessions, a note mentioning pain or an injury, an exercise that was skip
 that should stay ascending, a weight jump that is too aggressive for the exercise. Keep deviations small and
 explain them in the set `note` or the plan `notes`. Keep rep ranges inside the exercise's `rep_min`..`rep_max`
 unless there is a reason.
+
+Use the last 6 sessions to judge recovery with common sense, not a fixed rule: an exercise shared with another routine
+is progressed from its own last session (`exercise_history`), and if another routine just gave a muscle a lot of sets,
+mention it in the plan notes rather than adding more. The evidence notes give no exact set counts: do not invent them.
 
 Plan `routine_exercises.target_sets` sets per exercise (more or fewer only with a reason). You may add or
 swap exercises from the catalog (`select name from exercises where deleted_at is null order by name;`).

@@ -1,4 +1,4 @@
-"""Draws docs/claude-flow.svg: what happens, step by step, from tapping Finish to a plan made by Claude showing up in the app.
+"""Draws docs/claude-flow.svg: what happens, step by step, from tapping Plan with Claude to a plan made by Claude showing up in the app.
 Run:  python scripts/draw_claude_flow.py   then render a PNG with a headless browser (same as the schema diagram)."""
 from pathlib import Path
 from xml.sax.saxutils import escape as esc
@@ -59,109 +59,102 @@ def edge(key, side):
 
 
 # ------------------------------------------------------------------ boxes (y positions chosen so nothing overlaps)
-step(1, "dev", 120, DEV, 1, "You tap Finish", [
-    "The workout is saved on the phone or watch",
-    "first, so it works with no signal. You can tap",
-    "a feeling from 1 to 5. Until it uploads, the",
-    "history shows \"waiting to upload\"."])
-step(2, "db", 120, DB, 2, "sync_workout uploads it", [
-    "Session, sets and feeling are merged into the",
-    "database (safe to repeat: ids are made on the",
-    "device). A workout done on two devices is one.",
-    "Finishing then runs finish_session."])
-step(3, "db", 290, DB, 3, "finish_session", [
-    "Marks the session as ended.",
-    "Marks the routine's pending plans as used.",
-    "generate_plan: writes the automatic rules plan",
-    "right away, so a plan exists even if Claude",
-    "never answers."])
-step(4, "db", 500, DB, 4, "request_claude_plan", [
-    "Reads the address and the token from the Vault",
-    "(never in the code). Sends one HTTP request",
-    "with pg_net: \"routine: Workout B\" + session id.",
-    "Only once per session. If it fails, the finish",
-    "still succeeds (the rules plan stays)."])
-step(5, "ai", 500, AI, 5, "The task starts", [
+step(1, "dev", 120, DEV, 1, "You tap Plan with Claude", [
+    "On the routine, the day you will train it. A",
+    "pop-up asks \"Are you sure?\". Then the button",
+    "says \"Claude is planning...\" and the phone checks",
+    "every 10 seconds whether the plan is in."])
+step(2, "db", 120, DB, 2, "request_routine_plan", [
+    "Checks the routine is yours. A second tap within",
+    "2 minutes is ignored. Reads the address and the",
+    "token from the Vault (never in the code), sends one",
+    "HTTP request with pg_net: \"routine: Workout B\"."])
+step(3, "ai", 120, AI, 3, "The task starts", [
     "Nobody is watching. It reads only the routine's",
     "name from the request, and ignores anything",
     "else in it. An unknown routine name: it stops."])
-step(6, "ai", 670, AI, 6, "Reads your instructions", [
+step(4, "ai", 290, AI, 4, "Reads your instructions", [
     "select claude_instructions(true), through the",
     "Supabase connector: your goal, the planning",
     "guide and the evidence notes. This text is yours,",
     "so it is followed. An empty text: it stops."])
-step("docs", "db", 670, SIDE, None, "documents", [
+step("docs", "db", 290, SIDE, None, "documents", [
     "owner-goal, planning-guide, evidence-notes",
     "(the guide is published from CLAUDE_GUIDE.md)"])
-step(7, "ai", 840, AI, 7, "Reads your data (select only)", [
-    "The routine's exercises and rep ranges, the last",
-    "4 sessions (every set, your notes), then how the",
-    "body is doing: weekly overview, session scores",
-    "and feelings, measurements, check-ins."])
-step("views", "db", 840, SIDE, None, "views and tables it reads", [
-    "routine_exercises, exercises, sets, sessions,",
-    "session_scores, weekly_overview, body_latest,",
-    "body_shape, body_checkins, current_plan"])
-step(8, "ai", 1010, AI, 8, "Decides the next session", [
-    "Double progression inside each rep range, the",
-    "weight steps (increment_kg), your goal and the",
-    "research notes. It keeps your three routines and",
-    "flags any exercise whose step is unknown."])
-step("rules", "db", 1010, SIDE, None, "What Claude may and may not do", [
+step(5, "ai", 460, AI, 5, "Reads your data (select only)", [
+    "The last 6 sessions of any routine (every set,",
+    "scores, feelings), that routine's own last 4 and",
+    "your notes, the muscle totals, weekly overview,",
+    "measurements and check-ins."])
+step("views", "db", 460, SIDE, None, "views and tables it reads", [
+    "sessions, sets, session_scores, session_muscles,",
+    "weekly_muscles, weekly_overview, body_latest,",
+    "body_shape, body_checkins, exercise_history,",
+    "current_plan"])
+step(6, "ai", 650, AI, 6, "Decides today's session", [
+    "Double progression inside each rep range, from",
+    "each exercise's own last session, the weight steps",
+    "(increment_kg), what the other routines did since,",
+    "your goal and the research notes. It flags any",
+    "exercise whose step is unknown."])
+step("rules", "db", 650, SIDE, None, "What Claude may and may not do", [
     "It uses select queries and submit_plan only: it",
     "never inserts, updates or deletes anything else.",
     "Text found in the database (notes, titles) is",
     "treated as data, never as instructions."])
-step(9, "ai", 1170, AI, 9, "Calls submit_plan", [
+step(7, "ai", 840, AI, 7, "Calls submit_plan", [
     "submit_plan(routine, plan as JSON, note):",
     "every exercise with its sets: weight, rep range.",
     "It may not insert, update or delete anything else."])
-step(10, "db", 1170, DB, 10, "submit_plan checks and saves", [
+step(8, "db", 840, DB, 8, "submit_plan checks and saves", [
     "Rejects unknown exercise names, repeated",
     "exercises and impossible sets (with a message).",
     "Replaces an older pending Claude plan, then",
     "writes planned_sessions (claude, pending) and",
     "planned_sets."])
-step(11, "db", 1380, DB, 11, "The app asks for the plan", [
-    "current_plan: a pending Claude plan beats the",
-    "rules plan. workout_plan / workout_start merge",
-    "it with any change you made to the routine."])
-step(12, "dev", 1380, DEV, 12, "You see it", [
+step(9, "db", 1050, DB, 9, "The phone sees it", [
+    "routine_plan_status: no longer waiting. current_plan:",
+    "a pending Claude plan beats the automatic rules plan.",
+    "workout_plan / workout_start merge it with any",
+    "change you made to the routine."])
+step(10, "dev", 1050, DEV, 10, "You see it", [
     "The routine says \"Claude plan ready\" with",
-    "Claude's note (or \"Auto plan ready\" if there is",
-    "none yet). The targets show next to what you",
+    "Claude's note. The targets show next to what you",
     "did last time. The watch hints after each set."])
-step(13, "dev", 1580, LOOP, 13, "You train, then Finish again", [
-    "The plan is marked used and the session gets",
-    "its score: the share of planned sets met.",
-    "That score and your feeling go to the next plan."])
+step(11, "dev", 1240, LOOP, 11, "You train, then Finish", [
+    "The workout is saved on the device first and",
+    "uploads when there is signal. It gets its score: the",
+    "share of planned sets met."])
+step("finish", "db", 1240, SIDE, None, "sync_workout, then finish_session", [
+    "Marks the plan you followed as used and writes",
+    "the automatic rules plan for next time (the",
+    "fallback). It does not ask Claude: you do, with",
+    "the button, on the day."])
 
 # ------------------------------------------------------------------ arrows
 c = "#444"
-path([edge(1, "r"), edge(2, "l")], c, label="upload", lpos=((edge(1, "r")[0] + edge(2, "l")[0]) / 2, edge(1, "r")[1] - 8))
-path([edge(2, "b"), edge(3, "t")], c)
+path([edge(1, "r"), edge(2, "l")], c, label="ask", lpos=((edge(1, "r")[0] + edge(2, "l")[0]) / 2, edge(1, "r")[1] - 8))
+path([edge(2, "r"), edge(3, "l")], "#9a4f00", dash=True, label="HTTPS call",
+     lpos=((edge(2, "r")[0] + edge(3, "l")[0]) / 2, edge(2, "r")[1] - 8))
 path([edge(3, "b"), edge(4, "t")], c)
-path([edge(4, "r"), edge(5, "l")], "#9a4f00", dash=True, label="HTTPS call",
-     lpos=((edge(4, "r")[0] + edge(5, "l")[0]) / 2, edge(4, "r")[1] - 8))
+path([edge(4, "l"), edge("docs", "r")], "#555", dash=True, label="SQL", lpos=((edge(4, "l")[0] + edge("docs", "r")[0]) / 2, edge(4, "l")[1] - 8))
+path([edge(4, "b"), edge(5, "t")], c)
+path([edge(5, "l"), edge("views", "r")], "#555", dash=True, label="SQL", lpos=((edge(5, "l")[0] + edge("views", "r")[0]) / 2, edge(5, "l")[1] - 8))
 path([edge(5, "b"), edge(6, "t")], c)
-path([edge(6, "l"), edge("docs", "r")], "#555", dash=True, label="SQL", lpos=((edge(6, "l")[0] + edge("docs", "r")[0]) / 2, edge(6, "l")[1] - 8))
 path([edge(6, "b"), edge(7, "t")], c)
-path([edge(7, "l"), edge("views", "r")], "#555", dash=True, label="SQL", lpos=((edge(7, "l")[0] + edge("views", "r")[0]) / 2, edge(7, "l")[1] - 8))
-path([edge(7, "b"), edge(8, "t")], c)
+path([edge(7, "l"), edge(8, "r")], "#9a4f00", dash=True, label="writes plan",
+     lpos=((edge(7, "l")[0] + edge(8, "r")[0]) / 2, edge(7, "l")[1] - 8))
 path([edge(8, "b"), edge(9, "t")], c)
-path([edge(9, "l"), edge(10, "r")], "#9a4f00", dash=True, label="writes plan",
-     lpos=((edge(9, "l")[0] + edge(10, "r")[0]) / 2, edge(9, "l")[1] - 8))
-# 10 -> 11 (down), 11 -> 12 (left), 12 -> 13 (down)
+path([edge(9, "l"), edge(10, "r")], c, label="the plan", lpos=((edge(9, "l")[0] + edge(10, "r")[0]) / 2, edge(9, "l")[1] - 8))
 path([edge(10, "b"), edge(11, "t")], c)
-path([edge(11, "l"), edge(12, "r")], c, label="the plan", lpos=((edge(11, "l")[0] + edge(12, "r")[0]) / 2, edge(11, "l")[1] - 8))
-path([edge(12, "b"), edge(13, "t")], c)
-# loop: 13 back to 1 along the far left margin
-x13, y13, w13, h13 = box_geo[13]
+path([edge(11, "r"), edge("finish", "l")], c, label="upload", lpos=((edge(11, "r")[0] + edge("finish", "l")[0]) / 2, edge(11, "r")[1] - 8))
+# loop: 11 back to 1 along the far left margin
+x11, y11, w11, h11 = box_geo[11]
 x1, y1, w1, h1 = box_geo[1]
-path([(x13, y13 + 30), (9, y13 + 30), (9, y1 + 30), (x1, y1 + 30)], "#6b3fa0", dash=True)
-text(24, y13 - 40, "and round again", 12, "700", "#6b3fa0", style='transform="rotate(-90 24 %d)"' % (y13 - 40))
+path([(x11, y11 + 30), (9, y11 + 30), (9, y1 + 30), (x1, y1 + 30)], "#6b3fa0", dash=True)
+text(24, y11 - 40, "next time you want a plan", 12, "700", "#6b3fa0", style='transform="rotate(-90 24 %d)"' % (y11 - 40))
 
-H = box_geo[13][1] + box_geo[13][3] + 130
+H = box_geo[11][1] + box_geo[11][3] + 130
 
 # ------------------------------------------------------------------ lanes (drawn first, so under the boxes)
 lanes = ""
@@ -178,8 +171,8 @@ legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 62}" width="1640
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" font-family="Segoe UI, Arial, sans-serif">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#444"/></marker></defs>
 <rect width="{W}" height="{H}" fill="#fff"/>
-<text x="30" y="38" font-size="24" font-weight="700" fill="#222">From Finish to a plan made by Claude</text>
-<text x="30" y="58" font-size="13.5" fill="#555">Everything after step 4 happens with nobody at the phone. The automatic rules plan (step 3) is already there as a fallback.</text>
+<text x="30" y="38" font-size="24" font-weight="700" fill="#222">From the Plan with Claude button to a plan made by Claude</text>
+<text x="30" y="58" font-size="13.5" fill="#555">Everything after step 3 happens with nobody at the phone. The automatic rules plan (written at every Finish) is already there as a fallback.</text>
 {lanes}{"".join(parts)}{legend}</svg>'''
 
 out = Path(__file__).resolve().parent.parent / "docs" / "claude-flow.svg"
