@@ -8,6 +8,7 @@ import { daysAgo, formatDate, num, targetText } from '../lib/format'
 import { getWorkoutPlan, startRoutineWorkout } from '../lib/workoutPlan'
 import { duration, loadSession, type Block, type Loaded } from './SessionPage'
 import ScoreBadge from '../components/ScoreBadge'
+import PlanWithClaude from '../components/PlanWithClaude'
 
 type Stat = { sets: number; totalReps: number; bestWeightKg: number | null; volumeKg: number | null }
 
@@ -192,6 +193,16 @@ export default function RoutinePage({ id }: { id: string }) {
           <button className="primary" disabled={busy || blocked} onClick={start}>
             {busy ? 'Loading…' : active ? 'Resume workout' : blocked ? `${current?.title} in progress` : 'Start workout'}
           </button>
+
+          <PlanWithClaude
+            routineId={id}
+            routineName={data.name}
+            onArrived={() =>
+              load(id)
+                .then(setData)
+                .catch(() => undefined)
+            }
+          />
 
           {data.planKind === 'claude' && data.planNotes && <p className="card note-card">“{data.planNotes}”</p>}
 

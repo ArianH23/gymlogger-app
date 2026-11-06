@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
@@ -7,6 +7,7 @@ import { syncPending } from '../lib/sync'
 import { useNav } from '../lib/nav'
 import { daysAgo } from '../lib/format'
 import { latestCheckinDay } from '../lib/checkins'
+import PlanWithClaude from '../components/PlanWithClaude'
 
 type RoutineCard = {
   id: string
@@ -85,8 +86,8 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
   }
 
   // Load the routine list (or the last copy if there is no signal) and keep every plan on the phone.
-  useEffect(() => {
-    const load = () =>
+  const load = useCallback(
+    () =>
       loadRoutines()
         .then((list) => {
           localStorage.setItem('gl_routines', JSON.stringify(list))
@@ -98,7 +99,10 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
           const saved = localStorage.getItem('gl_routines')
           if (saved) setRoutines(JSON.parse(saved) as RoutineCard[])
           else setError(e.message ?? String(e))
-        })
+        }),
+    [],
+  )
+  useEffect(() => {
     void load()
     window.addEventListener('online', load)
     document.addEventListener('visibilitychange', load)
@@ -106,7 +110,7 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
       window.removeEventListener('online', load)
       document.removeEventListener('visibilitychange', load)
     }
-  }, [])
+  }, [load])
 
   const current = inProgress?.[0] // the one open workout, if any: nothing else can be started meanwhile
 
@@ -166,6 +170,7 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
             <button className="primary start" disabled={starting !== null || blocked} onClick={() => (active ? onOpen(active.id) : start(r))}>
               {starting === r.id ? 'Loading…' : active ? 'Resume workout' : blocked ? `${current?.title} in progress` : 'Start workout'}
             </button>
+            <PlanWithClaude routineId={r.id} routineName={r.name} onArrived={() => void load()} />
           </div>
         )
       })}
