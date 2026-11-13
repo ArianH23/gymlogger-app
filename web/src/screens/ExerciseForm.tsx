@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { FormSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import { supabase } from '../lib/supabase'
 import { useNav } from '../lib/nav'
@@ -86,7 +87,7 @@ export default function ExerciseForm({ id }: { id?: string }) {
 
   return (
     <Page title={id ? 'Edit exercise' : 'New exercise'}>
-      {!loaded && !error && <p className="muted">Loading…</p>}
+      {!loaded && !error && <FormSkeleton fields={5} />}
       {loaded && (
         <form className="card" onSubmit={save}>
           <label>

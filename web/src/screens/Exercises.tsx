@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ListSkeleton } from '../components/Skeleton'
 import { loadExerciseList, sortAndFilter, type ExerciseRow as Row } from '../lib/exerciseList'
 import { useNav } from '../lib/nav'
 import { formatDayMonth, kgText } from '../lib/format'
@@ -36,7 +37,7 @@ export default function Exercises() {
         onChange={(e) => setQuery(e.target.value)}
       />
       {offline && <p className="muted">No signal: showing the last list that was loaded.</p>}
-      {!rows && !offline && <p className="muted">Loading…</p>}
+      {!rows && !offline && <ListSkeleton rows={8} />}
       {shown.map((r) => (
         <button className="card list-item" key={r.id} onClick={() => push({ type: 'exercise', id: r.id })}>
           <span className="routine-title">{r.name}</span>

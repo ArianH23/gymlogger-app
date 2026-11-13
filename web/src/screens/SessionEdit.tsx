@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { PageSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import ExercisePicker from '../components/ExercisePicker'
 import { supabase } from '../lib/supabase'
@@ -215,7 +216,7 @@ export default function SessionEdit({ id }: { id: string }) {
 
   return (
     <Page title="Edit session">
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && <PageSkeleton />}
       {data && (
         <>
           <div className="card">

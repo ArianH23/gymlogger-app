@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { FormSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import { useNav } from '../lib/nav'
 import { loadShape, REGIONS, resetTargets, saveTargets, type ShapeData } from '../lib/shape'
@@ -69,7 +70,7 @@ export default function ShapeTargets() {
 
   return (
     <Page title="Targets">
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && <FormSkeleton fields={10} />}
       {data && data.heightCm === null && <div className="card">Add your height first (Body tab): the model targets are built from it.</div>}
       {data && data.heightCm !== null && (
         <form className="card" onSubmit={save}>

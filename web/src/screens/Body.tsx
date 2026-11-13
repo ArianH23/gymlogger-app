@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChartSkeleton, ListSkeleton } from '../components/Skeleton'
 import TimeChart, { type Series } from '../components/TimeChart'
 import { useNav } from '../lib/nav'
 import { dayToTime, FIELDS, loadBody, saveHeight, type BodyData, type Checkin, type LatestRow, type MetricRow } from '../lib/checkins'
@@ -125,7 +126,12 @@ export default function Body() {
         </button>
       </div>
       {error && <div className="card error">Could not load: {error}</div>}
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && (
+        <>
+          <ChartSkeleton />
+          <ListSkeleton rows={3} />
+        </>
+      )}
       {data?.offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
 
       {data && checkins && (

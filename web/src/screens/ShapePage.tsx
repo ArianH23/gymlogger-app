@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChartSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import ShapeFigure from '../components/ShapeFigure'
 import { useNav } from '../lib/nav'
@@ -41,7 +42,7 @@ export default function ShapePage() {
   return (
     <Page title="Shape vs target">
       {error && <div className="card error">Could not load: {error}</div>}
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && <ChartSkeleton height={420} />}
       {data?.offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
 
       {data && data.heightCm === null && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PageSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import { supabase } from '../lib/supabase'
 import { useNav } from '../lib/nav'
@@ -148,7 +149,7 @@ export default function SessionPage({ id }: { id: string }) {
       }
     >
       {error && <div className="card error">Could not load this session: {error}</div>}
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && <PageSkeleton />}
       {offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
       {data && s && (
         <>

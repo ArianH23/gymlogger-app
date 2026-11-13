@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import LineChart, { type Point } from '../components/LineChart'
+import { PageSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import { useNav } from '../lib/nav'
 import MuscleTags from '../components/MuscleTags'
@@ -221,7 +222,7 @@ export default function ExercisePage({ id }: { id: string }) {
       }
     >
       {error && <div className="card error">Could not load this exercise: {error}</div>}
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && <PageSkeleton />}
       {data && (
         <>
           {subtitle && <p className="muted subtitle">{subtitle}</p>}

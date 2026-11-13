@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ListSkeleton } from './Skeleton'
 import { loadExerciseList, sortAndFilter, type ExerciseRow } from '../lib/exerciseList'
 import { useBackToClose } from '../lib/overlay'
 import { formatDayMonth } from '../lib/format'
@@ -37,7 +38,7 @@ export default function ExercisePicker({ onPick, onClose, taken }: Props) {
         <h1>Add exercise</h1>
         <input className="search" type="search" placeholder="Search exercises" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
         {offline && <p className="muted">No signal: showing the last list that was loaded.</p>}
-        {!rows && <p className="muted">Loading…</p>}
+        {!rows && <ListSkeleton rows={6} />}
         {shown.map((r) => {
           const inUse = taken?.has(r.id)
           return (

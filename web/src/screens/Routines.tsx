@@ -1,3 +1,4 @@
+import { ListSkeleton } from '../components/Skeleton'
 import { useCallback, useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
@@ -146,7 +147,7 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
         {current ? `Resume ${current.title}` : '+ Start empty workout'}
       </button>
       {error && <div className="card error">Could not load routines: {error}</div>}
-      {!routines && !error && <p className="muted">Loading…</p>}
+      {!routines && !error && <ListSkeleton rows={3} button />}
       {routines?.map((r) => {
         const active = inProgress?.find((w) => w.routineId === r.id)
         const blocked = !!current && !active // another workout is open

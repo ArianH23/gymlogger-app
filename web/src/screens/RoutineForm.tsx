@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FormSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import ExercisePicker from '../components/ExercisePicker'
 import { useNav } from '../lib/nav'
@@ -72,7 +73,7 @@ export default function RoutineForm({ id }: { id?: string }) {
 
   return (
     <Page title={id ? 'Edit routine' : 'New routine'}>
-      {!loaded && !error && <p className="muted">Loading…</p>}
+      {!loaded && !error && <FormSkeleton fields={3} />}
       {loaded && (
         <>
           <div className="card">

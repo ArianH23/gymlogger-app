@@ -6,6 +6,7 @@ import { useNav } from '../lib/nav'
 import { formatDate } from '../lib/format'
 import { loadScores, type Score } from '../lib/score'
 import ScoreBadge from '../components/ScoreBadge'
+import { ListSkeleton } from '../components/Skeleton'
 
 type SessionRow = { id: string; title: string; started_at: string; ended_at: string | null; set_count: number; score?: Score | null }
 
@@ -21,7 +22,7 @@ export default function History() {
   const { push } = useNav()
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [more, setMore] = useState(true)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // the first page is loading when the screen opens
   const [offline, setOffline] = useState(false)
   const waiting = useLiveQuery(() => db.workouts.filter((w) => !!w.endedAt && !w.syncedAt).toArray(), [])
 
@@ -72,6 +73,8 @@ export default function History() {
       <h1>History</h1>
       {offline && <p className="muted">No signal: showing the last list that was loaded.</p>}
 
+      {loading && sessions.length === 0 && !offline && <ListSkeleton rows={6} />}
+
       {waiting?.map((w) => (
         <div className="card" key={w.id}>
           <div className="routine-title">{w.title}</div>
@@ -95,7 +98,7 @@ export default function History() {
           )
         })}
 
-      {more && (
+      {more && sessions.length > 0 && (
         <button className="primary" disabled={loading} onClick={() => loadPage(sessions.length)}>
           {loading ? 'Loading…' : 'Load more'}
         </button>

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { FormSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import { useNav } from '../lib/nav'
 import { deleteCheckin, FIELDS, GROUPS, loadBody, loadCheckin, saveCheckin, todayLocal } from '../lib/checkins'
@@ -85,7 +86,7 @@ export default function CheckinForm({ id }: { id?: string }) {
 
   return (
     <Page title={id ? 'Edit check-in' : 'New check-in'}>
-      {!loaded && !error && <p className="muted">Loading…</p>}
+      {!loaded && !error && <FormSkeleton fields={4} />}
       {loaded && (
         <form className="card" onSubmit={save}>
           <label>

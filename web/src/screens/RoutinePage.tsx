@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { PageSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import { supabase } from '../lib/supabase'
 import { db, type PlanExercise } from '../lib/db'
@@ -179,7 +180,7 @@ export default function RoutinePage({ id }: { id: string }) {
       }
     >
       {error && <div className="card error">Could not load this routine: {error}</div>}
-      {!data && !error && <p className="muted">Loading…</p>}
+      {!data && !error && <PageSkeleton />}
       {offline && <p className="muted">No signal: showing the last copy saved on this phone.</p>}
       {data && (
         <>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChartSkeleton } from './Skeleton'
 import MuscleBars from './MuscleBars'
 import MuscleFigure from './MuscleFigure'
 import { loadMusclePeriods, type MusclePeriod, type PeriodKind } from '../lib/muscles'
@@ -53,7 +54,7 @@ export default function MusclePeriods() {
         ))}
       </div>
       {error && <div className="card error">Could not load: {error}</div>}
-      {!periods && !error && <p className="muted">Loading…</p>}
+      {!periods && !error && <ChartSkeleton height={420} />}
       {periods && periods.length === 0 && <p className="muted">No finished sessions with tagged exercises yet.</p>}
       {periods && period && (
         <div className="card">
