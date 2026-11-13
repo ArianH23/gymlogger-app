@@ -40,8 +40,8 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (24 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 301 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (26 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 335 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -96,6 +96,17 @@ set counts 1 for each main muscle and 0.5 for each helping one (warm-ups do not 
 database sums that per session, per week and per month (`session_muscles`, `weekly_muscles`, `monthly_muscles`). The phone shows
 it as bars plus a front and back figure with the worked muscles painted in: on each session, on the Body tab by week and by
 month, and as tags under each exercise (in the workout and on its page).
+
+## Export to Hevy
+
+Body tab, "Export": downloads your workouts as a CSV for Hevy, one row per set. Hevy can only import files in the format of the
+Strong app (it cannot read its own export), so that is the format written: `Date, Workout Name, Duration, Exercise Name, Set Order,
+Weight, Reps, Distance, Seconds, Notes, Workout Notes, RPE`, weights in kg, dates in local time. The file is built in the database
+(`export_hevy_csv`, from the view `hevy_export_rows`). The incline bench angles and the single-arm row go back to Hevy's one
+incline bench and one dumbbell row (the angle is kept in the notes), left/right sets are separate rows with the side in the
+notes, and warm-ups are left out because the format has no warm-up type. "Logged here" exports only workouts made in this app;
+"Everything" also includes the imported Hevy history, which Hevy already has. Hevy does not publish the format and allows one
+import at a time, so try a small file first. In Hevy: Profile, Settings, Export & Import Data, Import Data, Import Strong CSV.
 
 ## One workout, two devices
 

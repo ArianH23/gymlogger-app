@@ -6,6 +6,7 @@ import { formatDate, formatDayMonth, num } from '../lib/format'
 import { createWatchPairing, type Pairing } from '../lib/pairing'
 import PairWatchSheet from '../components/PairWatchSheet'
 import MusclePeriods from '../components/MusclePeriods'
+import ExportHevy from '../components/ExportHevy'
 
 /** One chart series per metric, from the view body_metrics (stored measurements and calculated ones), oldest point first. */
 const buildSeries = (metrics: MetricRow[], checkins: Checkin[]): Series[] => {
@@ -227,6 +228,8 @@ export default function Body() {
           ))}
         </>
       )}
+
+      <ExportHevy />
 
       <h2>Watch</h2>
       <div className="card">
