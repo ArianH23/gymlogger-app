@@ -177,17 +177,29 @@ begin
   if exists (select 1 from jsonb_array_elements(v_pts) e where (e ->> 'dt')::numeric < 0) then
     raise exception 'the points must be in time order';
   end if;
-  if coalesce(v_track_d, 0) <= 0 then
-    raise exception 'the points cover no distance';
+  -- The source's own total is the official distance (it is the number you saw in Strava or Google Health); the track is
+  -- scaled to it, so the splits add up. Without one, the distance is measured along the track.
+  -- When the track has no positions, or disagrees with that total by more than 20%, the GPS was not working: its positions
+  -- say nothing reliable about pace, so a steady pace over the recorded time is assumed instead.
+  v_dist := (p_run ->> 'distance_m')::numeric;
+  if v_dist is null or v_dist <= 0 then
+    if coalesce(v_track_d, 0) <= 0 then
+      raise exception 'the points cover no distance, and no distance_m was given';
+    end if;
+    v_dist := v_track_d;
+  end if;
+  if coalesce(v_track_d, 0) <= 0 or abs(v_dist - v_track_d) / v_track_d > 0.2 then
+    -- Assume a steady pace over the recorded time, pauses of more than 30 s left out.
+    select jsonb_agg(x.obj || jsonb_build_object('d', v_dist * x.ct / nullif(x.total, 0), 'mt', x.ct) order by x.i), max(x.total)
+      into v_pts, v_moving
+    from (select (e ->> 'i')::integer as i, e as obj,
+                 sum(case when (e ->> 'dt')::numeric <= 30 then (e ->> 'dt')::numeric else 0 end) over (order by (e ->> 'i')::integer) as ct,
+                 sum(case when (e ->> 'dt')::numeric <= 30 then (e ->> 'dt')::numeric else 0 end) over () as total
+          from jsonb_array_elements(v_pts) e) x;
+    v_track_d := v_dist;
   end if;
   if coalesce(v_moving, 0) <= 0 then
     raise exception 'the points show no movement';
-  end if;
-
-  -- The source's own total is the official distance when it is close to the track (within 20%); the track is scaled to it.
-  v_dist := (p_run ->> 'distance_m')::numeric;
-  if v_dist is null or v_dist <= 0 or abs(v_dist - v_track_d) / v_track_d > 0.2 then
-    v_dist := v_track_d;
   end if;
   v_k := v_dist / v_track_d;
   v_elapsed := greatest(coalesce((p_run ->> 'elapsed_s')::numeric, 0), v_elapsed);
@@ -206,6 +218,15 @@ begin
   where x.i = 1 or x.i = v_n or floor(x.t / 5) <> floor(x.pt / 5);
 
   select id into v_run_id from public.runs where user_id = v_user and source = v_source and external_id = v_ext;
+  if v_run_id is null then
+    -- The same run arriving from another source (the Strava history, then a Google Health file): a run of yours that starts
+    -- within two minutes of this one is the same run, so it is updated instead of added twice.
+    select id into v_run_id
+    from public.runs
+    where user_id = v_user and started_at between v_started - interval '2 minutes' and v_started + interval '2 minutes'
+    order by abs(extract(epoch from (started_at - v_started)))
+    limit 1;
+  end if;
   v_created := v_run_id is null;
   if v_created then
     insert into public.runs (user_id, source, external_id, title, started_at, elapsed_s, moving_s, distance_m, elevation_gain_m,
@@ -264,7 +285,7 @@ end;
 $$;
 
 comment on function public.submit_run(jsonb) is
-  'Saves a run from its points (see the comment above the function for the JSON). Computes distance (the source''s total when given and close to the track, else along the track), moving time (pauses and standing still left out), elevation gain, heart rate, a thinned track and one split per kilometre. The same source and external_id again updates the run. Returns {run_id, created, distance_m, moving_s, elapsed_s}.';
+  'Saves a run from its points (see the comment above the function for the JSON). Computes distance (the source''s own total when given, else along the track; when the GPS did not work a steady pace is assumed), moving time (pauses and standing still left out), elevation gain, heart rate, a thinned track and one split per kilometre. The same source and external_id again, or a run starting within two minutes of an existing one, updates that run instead of adding a second. Returns {run_id, created, distance_m, moving_s, elapsed_s}.';
 revoke execute on function public.submit_run(jsonb) from public, anon;
 grant  execute on function public.submit_run(jsonb) to authenticated;
 
