@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from './lib/supabase'
@@ -10,16 +10,17 @@ import Exercises from './screens/Exercises'
 import Body from './screens/Body'
 import { PageFor } from './screens/Pages'
 import { NavProvider, useNav } from './lib/nav'
+import { IconBody, IconExercises, IconHistory, IconRoutines } from './components/Icons'
 import { db } from './lib/db'
 import { syncPending } from './lib/sync'
 
 type Tab = 'routines' | 'exercises' | 'history' | 'body'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'routines', label: 'Routines' },
-  { id: 'exercises', label: 'Exercises' },
-  { id: 'history', label: 'History' },
-  { id: 'body', label: 'Body' },
+const TABS: { id: Tab; label: string; icon: () => ReactNode }[] = [
+  { id: 'routines', label: 'Routines', icon: IconRoutines },
+  { id: 'exercises', label: 'Exercises', icon: IconExercises },
+  { id: 'history', label: 'History', icon: IconHistory },
+  { id: 'body', label: 'Body', icon: IconBody },
 ]
 
 /** "12 min", "1 h 05" */
@@ -119,7 +120,9 @@ function Shell() {
   return (
     <div className="app">
       <main className="screen">
-        {tab === 'routines' ? <Routines onOpen={setOpenWorkout} /> : tab === 'exercises' ? <Exercises /> : tab === 'body' ? <Body /> : <History />}
+        <div key={tab} className="tab-in">
+          {tab === 'routines' ? <Routines onOpen={setOpenWorkout} /> : tab === 'exercises' ? <Exercises /> : tab === 'body' ? <Body /> : <History />}
+        </div>
       </main>
 
       {backToWorkout}
@@ -128,6 +131,9 @@ function Shell() {
         <div className="nav-inner">
           {TABS.map((t) => (
             <button key={t.id} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
+              <span className="nav-icon">
+                <t.icon />
+              </span>
               {t.label}
             </button>
           ))}

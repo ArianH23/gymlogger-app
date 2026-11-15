@@ -6,7 +6,7 @@ export function Page({ title, children, action }: { title: string; children: Rea
   const { back } = useNav()
   return (
     <div className="app">
-      <main className="screen">
+      <main className="screen page-in">
         <div className="page-bar">
           <button className="link" onClick={back}>
             ‹ Back
