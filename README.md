@@ -40,14 +40,14 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (27 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 349 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (28 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 388 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
 | `.github/workflows/` | CI (`ci.yml`) and the "Update database" button (`update-database.yml`) |
 | `watch/` | the Wear OS app: `data/` (API, models, sync, storage), `ui/` (screens), `AppViewModel.kt`, `RestAlarm.kt`, `OngoingWorkout.kt` |
-| `importer/` | Hevy CSV importer (`hevy_import.py`), exercise catalog (`exercises.csv`), pytest tests |
+| `importer/` | Hevy CSV importer (`hevy_import.py`), Strava runs importer (`strava_import.py`), exercise catalog (`exercises.csv`), pytest tests |
 | `scripts/` | `publish_guide.py` (Claude's instructions into the database), `draw_schema.py`, `cut_faces.py`, `md_to_pdf.py`, `watch_pairing_check.py` and `watch_api_check.py` (play the watch over plain HTTP) |
 | `CLAUDE_GUIDE.md` | how Claude reads the database and writes a plan |
 | `docs/evidence.md` (+ `.pdf`) | short, verified research notes Claude cites (published as `evidence-notes`) |
@@ -71,10 +71,31 @@ At the end you can also tap a **feeling** from 1 (awful) to 5 (great). Claude re
 with a low feeling means the session cost a lot of recovery; a low score with a high feeling means the plan was too heavy.
 Imported Hevy sessions followed no plan, so they have no score. View: `session_scores`.
 
+## Runs
+
+Runs are tracked next to the gym sessions, but nothing plans them. History has a switch (All, Workouts, Runs); the Runs view
+shows the distance per week, your bests (fastest 5 km, fastest kilometre, longest run) and an **Import run** button. A run page
+shows distance, moving time and pace, the route as a line (no map service, so it works offline), the pace of each kilometre,
+and altitude and heart rate along the way when the file has them. Runs are on the calendar in blue and count for the week
+streak and the rest days.
+
+- **New runs:** in Google Health open the run, More, Export: that gives a TCX file. Pick it with Import run. The app only reads
+  the file (`web/src/lib/tcx.ts`, with unit tests: `npm test` in `web/`); the database function `submit_run` computes
+  everything, so every source gets the same numbers.
+- **The Strava history:** `importer/strava_import.py` reads an unzipped Strava export in `data/strava/` (git-ignored) and sends
+  each run (GPX or TCX; walks and hikes are left out) through the same `submit_run`. Dry run by default; `--user-id <id>
+  --env-file .env.cloud --apply` writes. Running it again updates, never duplicates.
+- **The rules in `submit_run`:** the source's own distance is the official one and the route is scaled to it; pace is from
+  moving time (pauses of more than 30 s and standing still are left out); one split per kilometre; a run that starts within
+  two minutes of one you already have is the same run (Strava, then Google Health); when the GPS did not work (no positions, or
+  a track more than 20% off the source's distance) the distance is kept and an even pace is assumed.
+- Tables `runs` and `run_splits`, views `run_summary`, `weekly_runs`, `monthly_runs`, `run_bests`. The Hevy export stays
+  strength-only. Your GPS tracks are stored only in your own rows.
+
 ## Calendar and streak
 
 History shows a month calendar with the days you trained filled in (tap a day for its sessions), and both History and the
-Routines home show three numbers: the **week streak** (weeks in a row with at least one finished workout), the **rest days**
+Routines home show three numbers: the **week streak** (weeks in a row with at least one finished workout or run), the **rest days**
 since your last session, and the sessions this week. Weeks run Monday to Sunday in local time, as in the weekly overview. The
 streak stays alive during the current week and only breaks once a whole week has passed with no workout. The imported Hevy
 history counts. It is all computed in the database (`workout_calendar`, `training_streak`); a workout still waiting to upload

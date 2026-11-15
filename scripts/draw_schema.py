@@ -34,6 +34,10 @@ T = {
     "body_profile": (1260, 700, BODY, ["user_id  PK  (one row per user)", "height_cm  (for the ratios)"], "created_at · updated_at"),
     "body_targets": (1260, 820, BODY, ["user_id + metric  PK", "target_value  (cm; your own target for one", "  of the 14 measurements)"], "updated_at"),
     "exercise_muscles": (30, 800, CAT, ["exercise_id  → exercises  +  muscle  (PK)", "role  primary (1 per set) / secondary (0.5)"], "user_id"),
+    "runs": (440, 870, LOG, ["id  PK", "source  strava_import / google_health / tcx_file", "external_id  (unique per source: no duplicates)",
+                             "title · started_at · notes", "distance_m · elapsed_s · moving_s", "elevation_gain_m · avg / max heart rate · calories",
+                             "track  (thinned route: time, position, altitude, hr)"], STAMPS),
+    "run_splits": (850, 870, LOG, ["run_id  → runs  +  km  (PK)", "distance_m · seconds", "elev_change_m · avg_hr_bpm"], "user_id"),
     "watch_pairings": (1260, 480, WATCH, ["id  PK", "code_hash  (the code is never stored)", "attempts  (dies at 5 wrong)", "expires_at  (10 minutes)",
                                            "used_at", "cancelled_at"], "user_id · created_at"),
 }
@@ -55,7 +59,11 @@ VIEWS = [
     ("body_shape", "each measured part against its target: gap and closeness"),
     ("routine_plan_status", "per routine: is Claude planning it now, or did it not answer"),
     ("hevy_export_rows", "one row per working set, in the Strong CSV format Hevy imports"),
-    ("workout_calendar", "one row per finished session with its calendar day"),
+    ("workout_calendar", "one row per finished gym session and per run, with its calendar day"),
+    ("run_summary", "one row per run: distance, moving time, pace, heart rate"),
+    ("weekly_runs", "runs per week: count, km, time, pace"),
+    ("monthly_runs", "runs per month: count, km, time, pace"),
+    ("run_bests", "fastest 5 km, fastest kilometre, longest run"),
     ("training_streak", "week streak, best streak, rest days since the last session, sessions this week"),
     ("session_muscles", "per session and muscle: weighted sets and share of the session"),
     ("weekly_muscles", "the same muscle sets, summed per week"),
@@ -65,7 +73,7 @@ FUNCS = [
     ("generate_plan(routine)", "progression rules → the automatic plan"),
     ("submit_plan(routine, json, notes)", "Claude writes a plan, validated"),
     ("workout_plan(routine)", "plan shown at start, kept in step with routine edits"),
-    ("finish_session(session)", "end a workout, mark plans used, plan, ask Claude"),
+    ("finish_session(session)", "end a workout, mark plans used, write the automatic plan"),
     ("request_routine_plan(routine)", "the Plan with Claude button: asks the scheduled task"),
     ("edit_session(…) / delete_session(…)", "correct or remove a past session, all-or-nothing"),
     ("exercise_history(exercise, n)", "the last n sessions of an exercise"),
@@ -77,8 +85,10 @@ FUNCS = [
     ("shape_defaults()", "the model: each measurement as a share of height, grow or shrink"),
     ("muscle_defs() / exercise_muscle_defaults()", "the 16 muscles, and the standard muscle tags by exercise name"),
     ("export_hevy_csv(only_app)", "your workouts as a CSV file Hevy can import"),
+    ("submit_run(json)", "saves a run from its points: distance, moving time, splits, elevation"),
     ("create_watch_pairing() / claim_watch_pairing(code)", "sign the watch in with a 6-digit code"),
-    ("round_to_step · deload_weight · set_updated_at · workout_json · watch_code_hash · tag_new_exercise · hevy_exercise_name · csv_field", "small helpers"),
+    ("round_to_step · deload_weight · set_updated_at · workout_json · watch_code_hash", "small helpers"),
+    ("tag_new_exercise · hevy_exercise_name · csv_field · haversine_m", "small helpers"),
 ]
 
 box = {}
@@ -127,11 +137,12 @@ arrows = [
     arrow([(1000, b["planned_sets"][1] + b["planned_sets"][3]), (1000, 840), (390, 840), (390, 520), (370, 520)]),  # -> exercises
     arrow([(130, b["session_exercise_notes"][1]), (130, b["exercises"][1] + b["exercises"][3])]),
     arrow([(370, 700), (425, 700), (425, 440), (440, 440)]),                            # notes -> sessions
+    arrow([(850, 910), (780, 910)]),                                                    # run_splits -> runs
 ]
 
-p1, h1 = panel(30, 950, 700, "Views  (read-only, shared by every client)", VIEWS)
-p2, h2 = panel(760, 950, 810, "Functions  (the logic, in the database)", FUNCS)
-H = max(950 + h1, 950 + h2) + 90
+p1, h1 = panel(30, 1100, 700, "Views  (read-only, shared by every client)", VIEWS)
+p2, h2 = panel(760, 1100, 810, "Functions  (the logic, in the database)", FUNCS)
+H = max(1100 + h1, 1100 + h2) + 90
 
 legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 70}" width="1580" height="52" rx="8" fill="#fff" stroke="#bbb"/>
 <rect x="46" y="{H - 56}" width="14" height="14" fill="{CAT[1]}" stroke="{CAT[0]}"/><text x="68" y="{H - 44}">catalog</text>
@@ -145,7 +156,7 @@ legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 70}" width="1580
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="{H}" viewBox="0 0 1640 {H}" font-family="Segoe UI, Arial, sans-serif">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#444"/></marker></defs>
 <rect width="1640" height="{H}" fill="#fff"/>
-<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 28 functions</text>
+<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 30 functions</text>
 {"".join(arrows)}{tables}{p1}{p2}{legend}</svg>'''
 
 out = Path(__file__).resolve().parent.parent / "docs" / "schema.svg"
