@@ -8,12 +8,14 @@ export default defineConfig({
     // Makes the app installable on the phone's home screen and keeps it working offline.
     VitePWA({
       registerType: 'autoUpdate',
+      // the bundled font is cached too, so headings look the same with no signal
+      workbox: { globPatterns: ['**/*.{js,css,html,woff2,png}'] },
       manifest: {
         name: 'GymLogger',
         short_name: 'GymLogger',
         description: 'Personal workout logger',
-        theme_color: '#0f1115',
-        background_color: '#0f1115',
+        theme_color: '#0a0c0b',
+        background_color: '#0a0c0b',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
