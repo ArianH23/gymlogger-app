@@ -18,7 +18,9 @@ export default function Login() {
 
   return (
     <main className="screen login">
+      <img className="login-icon" src="/icon-192.png" alt="" width="96" height="96" />
       <h1>GymLogger</h1>
+      <p className="muted login-tag">Log the sets. Claude plans the next one.</p>
       <form className="card" onSubmit={signIn}>
         <label>
           Email

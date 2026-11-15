@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import { IconSpark } from './Icons'
 import { loadPlanState, requestRoutinePlan, type PlanState } from '../lib/planRequest'
 
 type Props = {
@@ -62,7 +63,8 @@ export default function PlanWithClaude({ routineId, routineName, onArrived }: Pr
   const waiting = state === 'waiting'
   return (
     <div className="plan-claude">
-      <button className="outline" disabled={busy || waiting} onClick={() => setAsking(true)}>
+      <button className="plan-btn" disabled={busy || waiting} onClick={() => setAsking(true)}>
+        <IconSpark />
         {waiting ? 'Claude is planning…' : busy ? 'Asking…' : 'Plan with Claude'}
       </button>
       {waiting && <p className="muted note">Asked just now. The new plan shows up here by itself.</p>}

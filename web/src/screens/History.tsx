@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
@@ -17,6 +17,8 @@ function minutes(a: string, b: string | null) {
   const m = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000)
   return m > 0 && m < 600 ? m : null
 }
+
+const monthLabel = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 
 export default function History() {
   const { push } = useNav()
@@ -85,16 +87,21 @@ export default function History() {
 
       {sessions
         .filter((s) => !waitingIds.has(s.id))
-        .map((s) => {
+        .map((s, i, list) => {
           const mins = minutes(s.started_at, s.ended_at)
+          const month = monthLabel(s.started_at)
+          const newMonth = i === 0 || monthLabel(list[i - 1].started_at) !== month
           return (
-            <button className="card list-item" key={s.id} onClick={() => push({ type: 'session', id: s.id })}>
-              <span className="routine-title">{s.title}</span>
-              <span className="muted">
-                {formatDate(s.started_at)} · {s.set_count} sets{mins ? ` · ${mins} min` : ''}
-              </span>
-              <ScoreBadge score={s.score} />
-            </button>
+            <Fragment key={s.id}>
+              {newMonth && <h2 className="month">{month}</h2>}
+              <button className="card list-item" onClick={() => push({ type: 'session', id: s.id })}>
+                <span className="routine-title">{s.title}</span>
+                <span className="muted">
+                  {formatDate(s.started_at)} · {s.set_count} sets{mins ? ` · ${mins} min` : ''}
+                </span>
+                <ScoreBadge score={s.score} />
+              </button>
+            </Fragment>
           )
         })}
 

@@ -139,13 +139,10 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
         <button className="card checkin-due" onClick={() => push({ type: 'checkinForm' })}>
           <strong>Weekly check-in due</strong>
           <span className="muted">
-            {checkinDue.last ? `Last one ${daysAgo(`${checkinDue.last}T12:00:00`)}.` : 'No check-in yet.'} Bodyweight, waist, sleep: it helps your plans.
+            {checkinDue.last ? `Last one ${daysAgo(`${checkinDue.last}T12:00:00`)}.` : 'No check-in yet.'} It helps your plans.
           </span>
         </button>
       )}
-      <button className="outline" onClick={() => (current ? onOpen(current.id) : startEmpty())}>
-        {current ? `Resume ${current.title}` : '+ Start empty workout'}
-      </button>
       {error && <div className="card error">Could not load routines: {error}</div>}
       {!routines && !error && <ListSkeleton rows={3} button />}
       {routines?.map((r) => {
@@ -153,6 +150,7 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
         const blocked = !!current && !active // another workout is open
         return (
           <div className={`card routine${r.isNext ? ' next' : ''}`} key={r.id}>
+            {r.isNext && <div className="eyebrow">Next up</div>}
             <div className="routine-head">
               <button className="routine-open" onClick={() => push({ type: 'routine', id: r.id })}>
                 <span className="routine-title">{r.name}</span>
@@ -165,7 +163,6 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
               </button>
             </div>
             <div className="badges">
-              {r.isNext && <span className="badge next-badge">Next up</span>}
               {r.plan && <span className={`badge ${r.plan}`}>{r.plan === 'claude' ? 'Claude plan ready' : 'Auto plan ready'}</span>}
             </div>
             <button className="primary start" disabled={starting !== null || blocked} onClick={() => (active ? onOpen(active.id) : start(r))}>
@@ -175,6 +172,11 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
           </div>
         )
       })}
+      {routines && (
+        <button className="outline quiet" onClick={() => (current ? onOpen(current.id) : startEmpty())}>
+          {current ? `Resume ${current.title}` : '+ Start empty workout'}
+        </button>
+      )}
     </>
   )
 }
