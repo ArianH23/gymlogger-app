@@ -40,8 +40,8 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (26 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 335 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (27 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 349 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -70,6 +70,15 @@ planned weight or better; sets you didn't log count as not met). One database fu
 At the end you can also tap a **feeling** from 1 (awful) to 5 (great). Claude reads both next to each other: a high score
 with a low feeling means the session cost a lot of recovery; a low score with a high feeling means the plan was too heavy.
 Imported Hevy sessions followed no plan, so they have no score. View: `session_scores`.
+
+## Calendar and streak
+
+History shows a month calendar with the days you trained filled in (tap a day for its sessions), and both History and the
+Routines home show three numbers: the **week streak** (weeks in a row with at least one finished workout), the **rest days**
+since your last session, and the sessions this week. Weeks run Monday to Sunday in local time, as in the weekly overview. The
+streak stays alive during the current week and only breaks once a whole week has passed with no workout. The imported Hevy
+history counts. It is all computed in the database (`workout_calendar`, `training_streak`); a workout still waiting to upload
+is not counted until it has synced.
 
 ## Look and feel
 

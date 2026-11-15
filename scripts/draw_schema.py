@@ -55,6 +55,8 @@ VIEWS = [
     ("body_shape", "each measured part against its target: gap and closeness"),
     ("routine_plan_status", "per routine: is Claude planning it now, or did it not answer"),
     ("hevy_export_rows", "one row per working set, in the Strong CSV format Hevy imports"),
+    ("workout_calendar", "one row per finished session with its calendar day"),
+    ("training_streak", "week streak, best streak, rest days since the last session, sessions this week"),
     ("session_muscles", "per session and muscle: weighted sets and share of the session"),
     ("weekly_muscles", "the same muscle sets, summed per week"),
     ("monthly_muscles", "the same muscle sets, summed per month"),

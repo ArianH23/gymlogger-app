@@ -7,6 +7,8 @@ import { formatDate } from '../lib/format'
 import { loadScores, type Score } from '../lib/score'
 import ScoreBadge from '../components/ScoreBadge'
 import { ListSkeleton } from '../components/Skeleton'
+import StreakStats from '../components/StreakStats'
+import WorkoutCalendar from '../components/WorkoutCalendar'
 
 type SessionRow = { id: string; title: string; started_at: string; ended_at: string | null; set_count: number; score?: Score | null }
 
@@ -73,6 +75,8 @@ export default function History() {
   return (
     <>
       <h1>History</h1>
+      <StreakStats />
+      <WorkoutCalendar />
       {offline && <p className="muted">No signal: showing the last list that was loaded.</p>}
 
       {loading && sessions.length === 0 && !offline && <ListSkeleton rows={6} />}

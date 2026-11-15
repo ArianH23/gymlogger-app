@@ -9,6 +9,7 @@ import { useNav } from '../lib/nav'
 import { daysAgo } from '../lib/format'
 import { latestCheckinDay } from '../lib/checkins'
 import PlanWithClaude from '../components/PlanWithClaude'
+import StreakStats from '../components/StreakStats'
 
 type RoutineCard = {
   id: string
@@ -123,6 +124,7 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
           + New
         </button>
       </div>
+      <StreakStats />
       {!!waiting && (
         <div className="card waiting">
           <strong>

@@ -208,6 +208,14 @@ order by week_start desc, sets desc;
 `session_muscles` (per session) and `monthly_muscles` have the same shape. `muscle_defs()` lists all 16 muscles, so you can
 spot the ones missing from the results.
 
+How consistent the owner has been: weeks in a row with at least one workout (`week_streak`, still alive during the current
+week), the best run, the days since the last session (`rest_days`) and the sessions this week. After a long rest be
+conservative, as the goal and context say:
+
+```sql
+select week_streak, best_week_streak, last_session_day, rest_days, sessions_this_week from training_streak;
+```
+
 And how each recent session went, one row each (`met_pct` is the share of planned sets met, `tier` is the label
 the app shows, `feeling` is the owner's own 1-5 tap at the end of the session):
 
