@@ -28,10 +28,10 @@ export type Dims = {
   calf_r: number
 }
 
-type Pt = [number, number]
+export type Pt = [number, number]
 
 /** A smooth closed path through the points (Catmull-Rom turned into Bezier curves). */
-function smoothClosed(pts: Pt[]): string {
+export function smoothClosed(pts: Pt[]): string {
   const n = pts.length
   let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`
   for (let i = 0; i < n; i++) {
@@ -68,19 +68,26 @@ export function buildFigure(m: Dims, heightCm: number): Figure {
   const ab = (0.31 * m.abdomen) / 2
   const hi = (0.31 * m.hips) / 2
   const nk = m.neck / Math.PI / 2
+  const thigh = (m.thigh_l + m.thigh_r) / 2 / Math.PI / 2
 
-  // [height fraction, half width in cm] from the neck down to the pelvis
+  // The trunk without the arms: [height fraction, half width in cm] from under the jaw, down the traps to the armpit,
+  // chest, waist, hips, and in to the crotch.
   const left: [number, number][] = [
-    [0.87, nk],
-    [0.84, nk + 2.5],
-    [0.815, sh * 0.93],
-    [0.785, sh * 0.9],
-    [0.735, ch],
-    [0.685, ch + (wa - ch) * 0.5],
-    [0.625, wa],
-    [0.595, ab],
-    [0.53, hi],
-    [0.485, hi * 0.97],
+    [0.908, nk * 0.78], // starts inside the head, so the jaw runs into the neck
+    [0.884, nk],
+    [0.868, nk * 1.03],
+    [0.853, nk + 2.4],
+    [0.839, nk + (sh - nk) * 0.46],
+    [0.824, sh * 0.84],
+    [0.795, Math.max(ch, sh * 0.72)],
+    [0.74, ch],
+    [0.69, ch + (wa - ch) * 0.55],
+    [0.628, wa],
+    [0.596, ab],
+    [0.535, hi],
+    [0.5, Math.max(hi * 0.99, hi * 0.5 + thigh * 0.95)], // as wide as the top of the legs: no step at the hip
+    [0.474, hi * 0.88],
+    [0.452, hi * 0.5],
   ]
   const torso: Pt[] = [
     ...left.map(([f, hw]): Pt => [CX - hw * px, y(f)]),
@@ -98,16 +105,23 @@ export function buildFigure(m: Dims, heightCm: number): Figure {
     const sign = side === 'l' ? -1 : 1
     const bw = m[side === 'l' ? 'bicep_l' : 'bicep_r'] / Math.PI / 2
     const fw = m[side === 'l' ? 'forearm_l' : 'forearm_r'] / Math.PI / 2
-    const armX = sign * (sh - bw * 0.95)
+    // The arm hangs from the shoulder cap and drifts away from the body, so there is daylight between arm and waist.
+    const armX = sign * (sh - bw * 0.9)
     paths.push(
       smoothClosed(
         limb(armX, [
-          [0.81, bw * 0.8, 0],
-          [0.74, bw, sign * 0.4],
-          [0.665, ((bw + fw) / 2) * 0.95, sign * 0.9],
-          [0.57, fw, sign * 1.5],
-          [0.5, fw * 0.62, sign * 2.0],
-          [0.455, 2.6, sign * 2.2],
+          [0.828, bw * 0.7, sign * -0.4], // top of the shoulder
+          [0.802, bw * 1.02, sign * 0.3], // deltoid
+          [0.765, bw * 0.97, sign * 0.8],
+          [0.72, bw, sign * 1.4], // biceps
+          [0.676, bw * 0.8, sign * 2.0],
+          [0.65, ((bw * 0.8 + fw) / 2) * 0.92, sign * 2.3], // elbow
+          [0.612, fw, sign * 2.9], // forearm
+          [0.558, fw * 0.78, sign * 3.5],
+          [0.508, fw * 0.55, sign * 4.0], // wrist
+          [0.484, fw * 0.74, sign * 4.2], // hand
+          [0.456, fw * 0.74, sign * 4.4],
+          [0.43, fw * 0.45, sign * 4.5],
         ]),
       ),
     )
@@ -117,13 +131,21 @@ export function buildFigure(m: Dims, heightCm: number): Figure {
     paths.push(
       smoothClosed(
         limb(legX, [
-          [0.5, tw * 0.95, 0],
-          [0.43, tw, sign * 0.3],
-          [0.34, tw * 0.78, sign * 0.2],
-          [0.285, tw * 0.62, 0],
-          [0.2, cw, sign * 0.3],
-          [0.12, cw * 0.62, 0],
-          [0.04, 2.9, 0],
+          [0.55, tw * 0.55, 0], // starts inside the hips, so the joint is smooth
+          [0.5, tw * 0.97, 0],
+          [0.455, tw, sign * 0.2], // thigh
+          [0.4, tw * 0.92, sign * 0.1],
+          [0.34, tw * 0.74, sign * -0.2],
+          [0.296, tw * 0.6, sign * -0.4],
+          [0.274, tw * 0.58, sign * -0.4], // knee
+          [0.25, cw * 0.86, sign * -0.2],
+          [0.205, cw, sign * 0.2], // calf
+          [0.15, cw * 0.78, 0],
+          [0.09, cw * 0.5, sign * -0.2], // ankle
+          [0.055, cw * 0.5, sign * -0.2],
+          [0.03, 4.4, sign * 0.9], // foot
+          [0.012, 5.0, sign * 1.4],
+          [0.002, 4.6, sign * 1.4],
         ]),
       ),
     )
@@ -131,7 +153,7 @@ export function buildFigure(m: Dims, heightCm: number): Figure {
 
   return {
     paths,
-    head: { cx: CX, cy: y(0.935), rx: 7.8 * px, ry: 0.068 * heightCm * px },
+    head: { cx: CX, cy: y(0.936), rx: 7.4 * px, ry: 0.064 * heightCm * px },
     y,
     px,
     half: { shoulders: sh * px, chest: ch * px, hips: hi * px },
