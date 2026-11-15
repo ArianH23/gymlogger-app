@@ -6,7 +6,7 @@ The picture is `docs/cicd.png` (redraw with `python scripts/draw_cicd.py`). The 
 
 | What | When | Does |
 |---|---|---|
-| **CI** (`ci.yml`) | every push and pull request | database tests (240 checks on a temporary database), phone app (type-check, lint, build), importer tests, watch app compiles. Deploys nothing. Needs no secrets |
+| **CI** (`ci.yml`) | every push and pull request | database tests (on a temporary database), phone app (type-check, lint, unit tests, build), importer tests, watch app (unit tests and build). Deploys nothing. Needs no secrets |
 | **Deploy the site** (last job of `ci.yml`) | a push to `main`, all four checks green, and `DEPLOY_ENABLED` = `true` | first checks that production's database has no migration waiting (if it has, it stops with a message), then builds the phone app for production and deploys it to Cloudflare |
 | **Update database** (`update-database.yml`) | only when you click it | "apply" **unticked**: dry run, shows the SQL of every migration that would run, changes nothing. "apply" **ticked**: refuses unless it runs on `main` and the four checks for that exact commit are green, then applies the migrations and deploys the `watch-pair` function |
 | **Watch app** | never in GitHub | built on your PC (`watch/build.ps1 assembleRelease`) and installed over Wi-Fi with `adb`. GitHub cannot reach your watch, and an app built by GitHub is signed with a different key, so Android would refuse to update over yours |
@@ -60,7 +60,7 @@ No database password is needed: the Supabase tool signs in with the access token
 ## Everyday use
 - Push code: CI runs; if green, the site updates itself a few minutes later.
 - Changed the database (a new file in `supabase/migrations/`): push it, wait for green. The site job stops with "Database changes are waiting". Run **Update database** unticked, read the SQL on the run's *Summary* page, run it again **ticked**, then on the stopped CI run click **Re-run failed jobs**.
-- Watch app: build and install on your PC as before; CI only checks that it compiles.
+- Watch app: build and install on your PC as before; CI runs its unit tests and checks that it builds.
 
 ## If something fails
 - **Site job red, "Database changes are waiting":** that is the safety check, not a bug. Do the database steps above.

@@ -1,17 +1,18 @@
 # GymLogger
 
-A personal workout logger that replaces Hevy. You log sets on your phone or your watch; Claude plans the next session
-from your history; the app shows that plan next to what you did last time, and rates how each session went.
+A personal training app that replaces Hevy. You log sets on your phone or your watch; when you ask, Claude plans the
+session you are about to do from your history; the app shows that plan next to what you did last time and rates how each
+session went. It also keeps your runs, your body measurements, which muscles you trained, and your heart rate during workouts.
 
 - **Phone app**: an installable web app (PWA), works offline. `web/`
 - **Watch app**: a native Wear OS app (Kotlin, Compose) for a Pixel Watch. `watch/`
 - **Database + logic**: Supabase (Postgres) and one small Edge Function. `supabase/`
 - **Claude**: reads your history through the Supabase connector and writes plans with `submit_plan`. `CLAUDE_GUIDE.md`
-- **Import** of the old Hevy export: `importer/`
+- **Imports**: the old Hevy history and the Strava runs. `importer/`
 
-The full table/view/function diagram is `docs/schema.png` (redraw with `python scripts/draw_schema.py`, then render
-the SVG to PNG with a headless browser).
-The step-by-step flow from tapping Finish to a plan made by Claude is `docs/claude-flow.png` (`scripts/draw_claude_flow.py`).
+Pictures: the tables, views and functions are in `docs/schema.png` (`scripts/draw_schema.py`); the steps from the Plan with
+Claude button to a plan showing in the app are in `docs/claude-flow.png` (`scripts/draw_claude_flow.py`); the checks and
+deploys are in `docs/cicd.png` (`scripts/draw_cicd.py`). Each script writes an SVG; render it to PNG with a headless browser.
 
 ## How it fits together
 
@@ -30,11 +31,13 @@ The step-by-step flow from tapping Finish to a plan made by Claude is `docs/clau
 
 **The rule that shapes everything: logic that more than one client needs lives in the database**, as views and
 functions, not in the app. So the phone, the watch and Claude get identical answers (progression rules, which routine
-is next, stats, plan merging, session edits, the session score, merging a workout done on two devices). The apps mostly
-display and store.
+is next, stats, plan merging, session edits, the session score, merging a workout done on two devices, the numbers of a
+run, the streak). The apps mostly display and store. The one exception is the watch's "go heavier / go lighter" hint after a
+set, which has to work with no signal (see `docs/WATCH.md`).
 
-All ids are UUIDs made by the client and every write is safe to repeat, so offline devices never clash.
-Deletes are soft (`deleted_at`). Every table has row level security: only your account sees your rows.
+Workouts, sets, routines and check-ins get their ids on the device, and every write is safe to repeat, so offline devices
+never clash. What you delete in the app (sessions, sets, routines, exercises, check-ins, runs) is only marked as deleted
+(`deleted_at`). Every table has row level security: only your account sees your rows.
 
 ## Layout
 
@@ -43,16 +46,17 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 | `supabase/migrations/` | the database, in order (29 files). Never edit an applied migration: add a new one |
 | `supabase/tests/` | pgTAP tests, 401 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
-| `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
+| `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
 | `.github/workflows/` | CI (`ci.yml`) and the "Update database" button (`update-database.yml`) |
-| `watch/` | the Wear OS app: `data/` (API, models, sync, storage), `ui/` (screens), `AppViewModel.kt`, `RestAlarm.kt`, `OngoingWorkout.kt` |
+| `watch/` | the Wear OS app: `data/` (API, models, sync, storage), `ui/` (screens, colours), `AppViewModel.kt`, `RestAlarm.kt`, `OngoingWorkout.kt`, `HeartRate.kt` |
 | `importer/` | Hevy CSV importer (`hevy_import.py`), Strava runs importer (`strava_import.py`), exercise catalog (`exercises.csv`), pytest tests |
-| `scripts/` | `publish_guide.py` (Claude's instructions into the database), `draw_schema.py`, `cut_faces.py`, `md_to_pdf.py`, `watch_pairing_check.py` and `watch_api_check.py` (play the watch over plain HTTP) |
+| `scripts/` | `publish_guide.py` (Claude's instructions into the database), the three `draw_*.py` diagram scripts, `draw_shape_mockup.py`, `cut_faces.py`, `md_to_pdf.py`, `watch_pairing_check.py` and `watch_api_check.py` (play the watch over plain HTTP) |
 | `CLAUDE_GUIDE.md` | how Claude reads the database and writes a plan |
 | `docs/evidence.md` (+ `.pdf`) | short, verified research notes Claude cites (published as `evidence-notes`) |
 | `docs/prompts/` | the two short prompts: the scheduled task and the chat project |
-| `docs/WATCH.md` | how the watch app works: pairing, the calls it makes, sharing the workout |
+| `docs/WATCH.md` | how the watch app works: pairing, the calls it makes, sharing the workout, heart rate |
+| `docs/CICD.md` | the automatic checks and deploys: what runs when, the secrets, how to switch it on |
 
 ## The session score and the faces
 
@@ -103,10 +107,10 @@ streak and the rest days.
 
 ## Calendar and streak
 
-History shows a month calendar with the days you trained filled in (tap a day for its sessions), and both History and the
+History shows a month calendar with gym days and run days filled in (tap a day to see what you did), and both History and the
 Routines home show three numbers: the **week streak** (weeks in a row with at least one finished workout or run), the **rest days**
-since your last session, and the sessions this week. Weeks run Monday to Sunday in local time, as in the weekly overview. The
-streak stays alive during the current week and only breaks once a whole week has passed with no workout. The imported Hevy
+since your last workout or run, and how many you did this week. Weeks run Monday to Sunday in local time, as in the weekly overview. The
+streak stays alive during the current week and only breaks once a whole week has passed with nothing logged. The imported Hevy
 history counts. It is all computed in the database (`workout_calendar`, `training_streak`); a workout still waiting to upload
 is not counted until it has synced.
 
@@ -173,9 +177,11 @@ digits with the crown or by dragging, tap Pair. The code is checked by the `watc
 
 **On the watch.** Routines (Next up first) → exercises → sets → a set editor with a weight wheel and a reps wheel (crown or
 drag; the step is the exercise's `increment_kg`, or 2.5 kg). ‹ › step between sets and across exercises; logging moves to
-the next empty set; the last set asks whether you are done. Rest timer (tap it for -15 / +15 / Skip / Alarm on-off), vibration
-through an Android alarm so it works with the screen asleep, the time and elapsed time at the top, and a "workout going on"
-indicator on the watch face that returns you to the app.
+the next empty set; the last set asks whether you are done. After a set, the weight of the next one blinks blue with an up
+arrow if you beat the rep range, or red with a down arrow if you fell short. Rest timer (tap it for -15 / +15 / Skip / Alarm
+on-off), vibration through an Android alarm so it works with the screen asleep, and a gold pulsing "Rest over" when it ends.
+The time, the elapsed time and your heart rate are at the top, and a "workout going on" indicator on the watch face returns you
+to the app.
 
 **Build and install** (Windows; Android Studio provides Java and the SDK, nothing else to install):
 
@@ -197,8 +203,8 @@ On Windows PowerShell write `npx.cmd` instead of `npx` (script policy). Git Bash
 
 **Run the app on your PC.** `cd web && npm install && npm run dev`. It needs `web/.env.local` with
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. **That copy talks to your REAL database**: finishing a
-workout in it uploads for real and starts a Claude run. Use *Discard workout* for experiments, or point it at
-the local database (below).
+workout in it uploads for real, and "Plan with Claude" really asks Claude. Use *Discard workout* for experiments, or point
+it at the local database (below).
 
 **Local database (safe sandbox).** Needs Docker Desktop running.
 `npx supabase start -x imgproxy,edge-runtime,logflare,vector,realtime,storage-api,inbucket,mailpit`, then
@@ -207,33 +213,45 @@ the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
+**Run every test.** Database: `npx supabase test db` (401 checks). Phone: `cd web && npm test` (the run-file reader),
+plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (32 tests). Watch:
+`cd watch && .\build.ps1 testDebugUnitTest` (20 tests). GitHub runs all of them on every push.
+
 **Change the database.** Add a new file in `supabase/migrations/`, add a pgTAP test, run `npx supabase migration up`
-and `npx supabase test db`. To publish: `npx supabase db push --linked --dry-run` (read the list), then
-`npx supabase db push --linked`.
+and `npx supabase test db`. Publishing is done from GitHub, not from this PC (next paragraph).
 
-**Release order when several parts change.** Database first, then the function, then the site, then the watch:
-1. `npx supabase db push --linked` (after the dry run)
-2. `npx supabase functions deploy watch-pair --project-ref <ref> --no-verify-jwt`
-3. `cd web && npm run build && npx wrangler deploy` (static hosting on Cloudflare; the phone updates itself the next time it opens with signal)
-4. `cd watch && .\build.ps1 assembleRelease`, then install with `adb`.
+**Going live.** Database first, then the site, then the watch:
+1. `git push origin main`. GitHub runs the checks.
+2. If a migration is new: on GitHub, Actions, **Update database**. Run it once with "apply" unticked and read the SQL it
+   would run; then run it again ticked. It applies the migrations and redeploys the `watch-pair` function, and refuses unless
+   the checks for that commit are green.
+3. The site deploys by itself once the checks are green and the database is up to date (it stops with "Database changes are
+   waiting" otherwise; re-run that job after step 2). The phone updates itself the next time it opens with signal.
+4. The watch: `cd watch && .\build.ps1 assembleRelease`, then install with `adb` (see The watch app, above).
 
-An app that needs a new database function must never reach people before that function exists.
+An app that needs a new database function must never reach people before that function exists: that is what the order,
+and the check in step 3, are for. The same steps can be done by hand from this PC if GitHub is down
+(`npx supabase db push --linked --dry-run`, then without `--dry-run`; `cd web && npm run build && npx wrangler deploy`).
 
 **Change Claude's instructions.** Edit `CLAUDE_GUIDE.md`, `docs/evidence.md` or `docs/goal.md` (which stays out of git), then
-`python scripts/publish_guide.py --user-id <your auth user id> --env-file importer/.env.cloud --apply`. The chat
-project and the scheduled task both read it from the database, so nothing is pasted anywhere.
+`python scripts/publish_guide.py --user-id <your auth user id> --env-file importer/.env.cloud --apply` (without `--apply`
+it is a dry run). It publishes all three documents. The chat project and the scheduled task both read them from the database,
+so the guide itself is never pasted anywhere. Only their two short prompts live at claude.ai: if `docs/prompts/` changes,
+paste the new text there.
 
 **Import Hevy again.** `cd importer`, create the venv (`python -m venv .venv`, `.venv/Scripts/pip install -r requirements.txt`),
 then `python hevy_import.py --user-id <id>` is a dry run; add `--env-file .env.cloud --apply` to write. Re-running
-is safe (deterministic ids) and never overwrites exercise settings you edited. Tests: `python -m pytest`.
+is safe (deterministic ids) and never overwrites exercise settings you edited. The Strava runs are imported the same way
+with `strava_import.py` (see Runs above).
 
 **Change the faces.** Put the new expression sheet in `docs/` and run `python scripts/cut_faces.py "<sheet>.png"`
 (needs `pip install pillow numpy scipy`). The order on the sheet is great, good, average, weak, poor.
 
 ## CI/CD (automatic checks and deploys)
 
-GitHub runs the checks on every push (database tests, phone app, importer, watch compiles) and can put the phone app live
-by itself; the database is updated with a button you click, and the watch is installed from your PC over Wi-Fi.
+GitHub runs the checks on every push (database tests; phone app type-check, lint, unit tests and build; importer tests;
+watch unit tests and build) and puts the phone app live by itself; the database is updated with a button you click, and the
+watch is installed from your PC over Wi-Fi.
 Picture: `docs/cicd.png`. Guide, secrets and how to switch it on: `docs/CICD.md`. Files: `.github/workflows/`.
 
 ## What happens when you press Finish
@@ -243,8 +261,9 @@ Picture: `docs/cicd.png`. Guide, secrets and how to switch it on: `docs/CICD.md`
    ask Claude: that is on demand.
 3. On the day you will train a routine you tap **Plan with Claude** on it and confirm. `request_routine_plan` asks the scheduled
    task (a second tap within 2 minutes is ignored). Claude reads your last 6 sessions of any routine, that routine's own
-   history and your check-ins, then calls `submit_plan`. About 30 seconds later the button stops saying "Claude is planning..."
-   and the routine shows **Claude plan ready**. A **Claude plan beats the automatic one**.
+   history, your runs and your check-ins, then calls `submit_plan`. The phone checks every 10 seconds: when the plan is in, the
+   button stops saying "Claude is planning..." and the routine shows **Claude plan ready**. If nothing has arrived after 10
+   minutes it says so and you can ask again. A **Claude plan beats the automatic one**.
 4. If you edit a routine afterwards, `workout_plan` keeps Claude's targets for exercises that remain, drops removed
    ones and appends new ones from the automatic plan.
 
@@ -258,10 +277,11 @@ Without signal the workout waits on the device and uploads by itself later.
 | Supabase **publishable** key (public by design) | `web/.env.local`, and `watch/local.properties` for release builds (git-ignored) |
 | Scheduled task address + token | Supabase Vault (`claude_fire_url`, `claude_fire_token`). To rotate: regenerate in the task's settings at claude.ai/code/routines, then update the Vault secret |
 | The watch's login | on the watch (a refresh token made by pairing). There is no per-watch revoke list: if the watch is lost, sign the user out of all sessions in Supabase and sign in again on the phone and watch |
-| Cloudflare login | stored by `wrangler login` |
+| Cloudflare and Supabase tokens for the automatic deploys | GitHub, repository secrets (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_ACCESS_TOKEN`); see `docs/CICD.md` |
+| Cloudflare login for deploying by hand | stored by `wrangler login` on this PC |
 | Your goal and body profile | `docs/goal.md` (git-ignored) and the `documents` table |
 
-`.gitignore` keeps `/data/` (the Hevy CSV), every `.env*` file, `local.properties`, signing keys, build output, screenshots
+`.gitignore` keeps `/data/` (the Hevy CSV and the Strava export), every `.env*` file, `local.properties`, signing keys, build output, screenshots
 and scratch files out. Comments in it must be on their own line (a `#` after a pattern becomes part of the pattern).
 
 ## Conventions the numbers follow
@@ -279,6 +299,7 @@ and scratch files out. Comments in it must be on their own line (a `#` after a p
 - A dev copy of the app on your PC is wired to the real database (see above).
 - The `data/` rule in `.gitignore` is `/data/` on purpose: the watch app has a code package called `data`.
 - Big multi-line shell commands are unreliable in Git Bash on this machine: write files, then run short commands.
+- The watch emulator and Docker together need several GB of free memory: close other programs first, or test on the real watch.
 - Android Studio's Java is used for builds (`build.ps1` sets it); the watch build needs Android SDK platform 37 and Gradle 9.8.
 - Wear OS: a watch app that keeps the screen on drains the battery, so the rest alarm is a real Android alarm and the
   screen sleeps normally; the "workout going on" counter uses the time-since-boot clock, not a calendar time.
@@ -289,13 +310,17 @@ and scratch files out. Comments in it must be on their own line (a `#` after a p
 
 ## Not built
 
-Warm-up sets (you don't use them), GitHub/CI (skipped on purpose; the code lives on this PC plus a backup bundle).
-Ideas not done: an "all sets done, finish?" prompt on the phone, changing the default rest lengths from the watch,
-bigger ‹ › targets if your finger misses them.
+- A warm-up toggle in the app (you don't use warm-ups; imported ones are stored and left out of the numbers).
+- Heart rate for a workout done only on the phone: the watch is what records it.
+- Sharing a run straight from Google Health's share sheet: for now you pick the exported file.
+- Walks and hikes from Strava: only runs are imported.
+- An estimate of your natural ceiling from wrist and ankle: the two measurements are stored, the formula is not chosen yet.
+- Ideas not done: an "all sets done, finish?" prompt on the phone, changing the default rest lengths from the watch,
+  bigger ‹ › targets if your finger misses them.
 
 ## Backup
 
-The code and its full history are in this folder's `.git`. A portable copy can be made at any time with
-`git bundle create gymlogger.bundle --all` (restore with `git clone gymlogger.bundle`); the last one is kept in
-`Documents\GymLogger_backups\`. Secrets and your goal text are not in git; the goal is also stored in the
-`documents` table, and keys can be regenerated.
+The code and its full history are in this folder's `.git` and on GitHub (a private GitHub repository). A
+portable copy can also be made at any time with `git bundle create gymlogger.bundle --all` (restore with
+`git clone gymlogger.bundle`). Secrets, your goal text and the files in `data/` are not in git; the goal is also stored in the `documents` table, keys can be regenerated, and your
+training data itself lives in the Supabase project, not in this folder.
