@@ -49,6 +49,8 @@ jobs:
         run: npx tsc -b
       - name: Lint
         run: npm run lint
+      - name: Unit tests
+        run: npm test
       - name: "Build with placeholder addresses (this build is only a check and is never published)"
         run: npm run build
         env:

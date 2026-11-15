@@ -13,6 +13,7 @@ export type View =
   | { type: 'sessionEdit'; id: string }
   | { type: 'shape' } // your measurements against the target figure
   | { type: 'shapeTargets' }
+  | { type: 'run'; id: string }
 
 type Nav = {
   stack: View[]

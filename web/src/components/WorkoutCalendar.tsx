@@ -7,7 +7,7 @@ const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const monthName = (y: number, m: number) => new Date(y, m, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 const dayName = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
 
-/** A month at a time, Monday first, with the days you trained filled in. Tap a day to see its sessions. */
+/** A month at a time, Monday first: gym days filled in jade, run days in blue, a day with both in both. Tap a day to see it. */
 export default function WorkoutCalendar() {
   const { push } = useNav()
   const [now] = useState(() => new Date()) // today, fixed when the calendar opens
@@ -86,15 +86,19 @@ export default function WorkoutCalendar() {
             ))}
             {Array.from({ length: daysInMonth }, (_, i) => {
               const day = isoDay(ym.y, ym.m, i + 1)
-              const count = byDay.get(day)?.length ?? 0
-              const cls = ['cal-day', count ? 'has' : '', day === today ? 'today' : '', day === selected ? 'sel' : '', day > today ? 'future' : ''].filter(Boolean).join(' ')
+              const entries = byDay.get(day) ?? []
+              const count = entries.length
+              const gym = entries.filter((e) => e.kind === 'workout').length
+              const ran = count - gym
+              const what = [gym ? `${gym} ${gym === 1 ? 'workout' : 'workouts'}` : '', ran ? `${ran} ${ran === 1 ? 'run' : 'runs'}` : ''].filter(Boolean).join(' and ')
+              const cls = ['cal-day', gym ? 'has' : '', ran ? 'ran' : '', day === today ? 'today' : '', day === selected ? 'sel' : '', day > today ? 'future' : ''].filter(Boolean).join(' ')
               return (
                 <button
                   key={day}
                   className={cls}
                   disabled={count === 0}
                   aria-pressed={day === selected}
-                  aria-label={`${dayName(day)}${count ? `, ${count} ${count === 1 ? 'workout' : 'workouts'}` : ', no workout'}`}
+                  aria-label={`${dayName(day)}, ${what || 'nothing logged'}`}
                   onClick={() => setSelected(day === selected ? null : day)}
                 >
                   {i + 1}
@@ -103,16 +107,30 @@ export default function WorkoutCalendar() {
               )
             })}
           </div>
+          <div className="shape-legend cal-legend">
+            <span>
+              <i className="swatch dot start" /> Workout
+            </span>
+            <span>
+              <i className="swatch dot ran" /> Run
+            </span>
+          </div>
           <p className="muted note cal-foot">
-            {workoutDays === 0 ? 'No workouts this month.' : `${workoutDays} workout ${workoutDays === 1 ? 'day' : 'days'} this month.`}
+            {workoutDays === 0 ? 'Nothing logged this month.' : `${workoutDays} active ${workoutDays === 1 ? 'day' : 'days'} this month.`}
             {workoutDays > 0 && !selected ? ' Tap a filled day to see it.' : ''}
           </p>
           {selected &&
             picked.map((s) => (
-              <button className="cal-session" key={s.sessionId} onClick={() => push({ type: 'session', id: s.sessionId })}>
+              <button
+                className="cal-session"
+                key={s.sessionId ?? s.runId}
+                onClick={() => (s.runId ? push({ type: 'run', id: s.runId }) : s.sessionId && push({ type: 'session', id: s.sessionId }))}
+              >
                 <span>
                   <strong>{s.title}</strong>
-                  <small className="muted">{dayName(s.day)}</small>
+                  <small className="muted">
+                    {s.kind === 'run' ? 'Run' : 'Workout'} · {dayName(s.day)}
+                  </small>
                 </span>
                 <span aria-hidden="true">›</span>
               </button>

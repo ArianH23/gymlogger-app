@@ -41,21 +41,28 @@ export async function loadStreak(): Promise<{ streak: Streak | null; offline: bo
   }
 }
 
-export type CalendarSession = { day: string; sessionId: string; title: string }
+/** A gym session or a run on the calendar: one of sessionId and runId is set. */
+export type CalendarSession = { day: string; kind: 'workout' | 'run'; sessionId: string | null; runId: string | null; title: string }
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 
-/** The finished sessions of one month (month is 0-based, as in Date), oldest first. */
+/** The finished gym sessions and the runs of one month (month is 0-based, as in Date), oldest first. */
 export async function loadMonth(year: number, month: number): Promise<CalendarSession[]> {
   const next = month === 11 ? iso(year + 1, 0, 1) : iso(year, month + 1, 1)
   const { data, error } = await supabase
     .from('workout_calendar')
-    .select('day, session_id, title')
+    .select('day, kind, session_id, run_id, title')
     .gte('day', iso(year, month, 1))
     .lt('day', next)
     .order('started_at')
   if (error) throw error
-  return (data ?? []).map((r) => ({ day: r.day as string, sessionId: r.session_id as string, title: r.title as string }))
+  return (data ?? []).map((r) => ({
+    day: r.day as string,
+    kind: r.kind as 'workout' | 'run',
+    sessionId: (r.session_id as string | null) ?? null,
+    runId: (r.run_id as string | null) ?? null,
+    title: r.title as string,
+  }))
 }
 
 export { iso as isoDay }
