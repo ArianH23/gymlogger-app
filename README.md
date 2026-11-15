@@ -71,6 +71,17 @@ At the end you can also tap a **feeling** from 1 (awful) to 5 (great). Claude re
 with a low feeling means the session cost a lot of recovery; a low score with a high feeling means the plan was too heavy.
 Imported Hevy sessions followed no plan, so they have no score. View: `session_scores`.
 
+## Look and feel
+
+The design system ("Dark") lives at the top of `web/src/index.css` as variables: near-black surfaces, jade for actions, gold
+only for highlights (next routine, Claude's plans), a type scale, one radius and shadow set. Headings and big numbers use the
+Outfit font, bundled with the app (`@fontsource-variable/outfit`) and saved for offline use; body text is the system font. Tab
+icons are drawn in `web/src/components/Icons.tsx` (no icon library). Motion (page slide, button press, the tick when a set is
+logged) switches off when the phone asks for reduced motion. The chart and figure colours (blue, orange, chart green) are data
+colours chosen for colour-blind safety: do not restyle them by eye. The watch uses the same palette (`watch/.../ui/Theme.kt`).
+The body figures are drawn in `web/src/lib/shapeGeometry.ts` (silhouette from tape measurements) and
+`web/src/lib/muscleFigure.ts` (muscle outlines).
+
 ## Body measurements
 
 The Body tab and the check-in form cover what Hevy tracks and more: bodyweight, body fat, waist, neck, shoulders, chest,
