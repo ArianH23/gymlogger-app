@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -29,7 +28,7 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.rememberPickerState
 import com.gymlogger.watch.data.RoutineItem
 
-private val Error = Color(0xFFFF7A7A)
+private val Error = Danger
 
 /** The 6 digits made on the phone ("Pair watch" on the Body tab), picked with wheels: crown or finger drag. */
 @Composable

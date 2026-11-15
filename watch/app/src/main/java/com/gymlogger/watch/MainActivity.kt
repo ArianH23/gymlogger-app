@@ -20,8 +20,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.ui.graphics.Color
-import androidx.wear.compose.material3.ColorScheme
 import androidx.wear.compose.material3.MaterialTheme
 import com.gymlogger.watch.data.PlanExercise
 import com.gymlogger.watch.data.Row
@@ -38,10 +36,7 @@ import com.gymlogger.watch.ui.PairScreen
 import com.gymlogger.watch.ui.RestScreen
 import com.gymlogger.watch.ui.WorkoutClock
 import com.gymlogger.watch.ui.RoutinesScreen
-
-// The phone app's green on near-black, so the watch looks like the same app.
-private val Accent = Color(0xFF4CC38A)
-private val OnAccent = Color(0xFF08140E)
+import com.gymlogger.watch.ui.GymColors
 
 class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
@@ -63,7 +58,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         setContent {
-            MaterialTheme(colorScheme = ColorScheme(primary = Accent, onPrimary = OnAccent)) {
+            MaterialTheme(colorScheme = GymColors) {
                 if (!vm.signedIn) {
                     PairScreen(busy = vm.pairBusy, error = vm.pairError, onPair = vm::pair)
                 } else {
