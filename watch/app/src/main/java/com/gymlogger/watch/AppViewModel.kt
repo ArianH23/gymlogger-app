@@ -10,6 +10,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymlogger.watch.data.Api
+import com.gymlogger.watch.data.HeartRateStore
+import com.gymlogger.watch.data.hrSamplesJson
+import com.gymlogger.watch.data.submitSessionHr
 import com.gymlogger.watch.data.LoggedSet
 import com.gymlogger.watch.data.PairResult
 import com.gymlogger.watch.data.PlanExercise
@@ -57,6 +60,7 @@ sealed interface Screen {
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val api = Api(app)
     private val store = WorkoutStore(app)
+    private val hrStore = HeartRateStore(app)
 
     var signedIn by mutableStateOf(api.signedIn)
         private set
@@ -106,10 +110,31 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // The indicator on the watch face follows the open workout: on while one is open, gone when it ends.
         viewModelScope.launch {
             snapshotFlow { workout?.let { Triple(it.id, it.title, it.startedAt) } }.collect { w ->
-                if (w == null) OngoingWorkout.hide(app)
-                else OngoingWorkout.show(app, w.second, Instant.parse(w.third).toEpochMilli())
+                if (w == null) {
+                    HeartRate.stop(app)
+                    OngoingWorkout.hide(app)
+                } else {
+                    val startedAt = Instant.parse(w.third).toEpochMilli()
+                    OngoingWorkout.show(app, w.second, startedAt)
+                    HeartRate.start(app, w.first, w.second, startedAt) // records heart rate while the workout is open here
+                }
             }
         }
+        // When a recording has ended and saved its last readings, send them.
+        HeartRate.onStopped = { scheduleSync(0) }
+    }
+
+    /** After the permission dialogs: show the indicator and start the heart rate, if they are now allowed. */
+    fun permissionsAnswered() {
+        val w = workout ?: return
+        val startedAt = Instant.parse(w.startedAt).toEpochMilli()
+        OngoingWorkout.show(getApplication(), w.title, startedAt)
+        HeartRate.start(getApplication(), w.id, w.title, startedAt)
+    }
+
+    override fun onCleared() {
+        HeartRate.onStopped = null
+        super.onCleared()
     }
 
     // All changes to the open workout go through [change], one at a time, so a reply from the server can never
@@ -211,6 +236,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             store.removeWaiting(w.id)
         }
         waiting = store.waitingCount()
+        uploadHeartRate()
 
         val open = workout
         if (open == null) {
@@ -224,6 +250,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         } else if (!open.detached) {
             syncOpen(open)
+        }
+    }
+
+    /**
+     * Sends the heart rate of workouts that are over (finished here just above, or finished on the phone). The one still
+     * being recorded waits. If the server refuses it (the session was deleted), it is dropped, so it cannot block the queue.
+     */
+    private fun uploadHeartRate() {
+        for (id in hrStore.ids()) {
+            if (id == workout?.id || id == HeartRate.activeId) continue
+            val data = hrStore.read(id)
+            if (data == null) { // a damaged file: nothing to send
+                hrStore.delete(id)
+                continue
+            }
+            val (startedAt, samples) = data
+            if (samples.isNotEmpty()) {
+                try {
+                    api.submitSessionHr(id, hrSamplesJson(samples, startedAt))
+                } catch (e: Api.HttpError) {
+                    if (e.code !in 400..499) throw e // a server hiccup: try again next time
+                }
+            }
+            hrStore.delete(id)
         }
     }
 
@@ -375,6 +425,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         synchronized(lock) {
             val w = workout ?: return
             store.addDiscard(w.id)
+            hrStore.delete(w.id) // a workout thrown away has no heart rate to keep
             dropOpen()
         }
         scheduleSync(0)

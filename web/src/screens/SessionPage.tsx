@@ -8,6 +8,7 @@ import { loadScores, type Score } from '../lib/score'
 import ScoreBadge from '../components/ScoreBadge'
 import MuscleBars from '../components/MuscleBars'
 import MuscleFigure from '../components/MuscleFigure'
+import ProfileChart from '../components/ProfileChart'
 import { loadSessionMuscles, type MuscleRow } from '../lib/muscles'
 
 type SetRow = {
@@ -21,7 +22,17 @@ type SetRow = {
   exercises: { name: string; dumbbell_pair: boolean; load_type: string }
 }
 
-export type Session = { id: string; title: string; started_at: string; ended_at: string | null; notes: string | null }
+export type Session = {
+  id: string
+  title: string
+  started_at: string
+  ended_at: string | null
+  notes: string | null
+  // heart rate, when the watch recorded it: the average, the highest, and [seconds from the start, bpm] every 10 seconds
+  avg_hr_bpm?: number | null
+  max_hr_bpm?: number | null
+  hr_track?: [number, number][] | null
+}
 
 export type Block = {
   exerciseId: string
@@ -37,7 +48,7 @@ export type Loaded = { session: Session; blocks: Block[]; sets: number; volume: 
 
 export async function loadSession(id: string): Promise<Loaded> {
   const [s, sets, notes, scores] = await Promise.all([
-    supabase.from('sessions').select('id, title, started_at, ended_at, notes').eq('id', id).single(),
+    supabase.from('sessions').select('id, title, started_at, ended_at, notes, avg_hr_bpm, max_hr_bpm, hr_track').eq('id', id).single(),
     supabase
       .from('sets')
       .select('exercise_id, set_no, side, weight_kg, reps, is_warmup, logged_at, exercises(name, dumbbell_pair, load_type)')
@@ -170,6 +181,27 @@ export default function SessionPage({ id }: { id: string }) {
           </div>
           <ScoreBadge score={data.score} size="large" />
           {s.notes && <div className="card">{s.notes}</div>}
+          {s.avg_hr_bpm != null && (
+            <div className="card">
+              <h2 className="card-h">Heart rate</h2>
+              <div className="table run-facts hr-facts">
+                <div className="table-row">
+                  <span>Average</span>
+                  <span>{s.avg_hr_bpm} bpm</span>
+                </div>
+                {s.max_hr_bpm != null && (
+                  <div className="table-row">
+                    <span>Highest</span>
+                    <span>{s.max_hr_bpm} bpm</span>
+                  </div>
+                )}
+              </div>
+              {s.hr_track && s.hr_track.length > 1 && (
+                <ProfileChart points={s.hr_track.map(([t, bpm]) => ({ x: t / 60, y: bpm }))} color="var(--target)" label="Heart rate" unit="bpm" xUnit="min" />
+              )}
+              <p className="muted note">Recorded by the watch while the workout was open on it.</p>
+            </div>
+          )}
           {muscles.length > 0 && (
             <div className="card">
               <h2 className="card-h">Muscles worked</h2>

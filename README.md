@@ -40,8 +40,8 @@ Deletes are soft (`deleted_at`). Every table has row level security: only your a
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (28 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 388 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (29 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 401 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/score.ts` the session score |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -70,6 +70,15 @@ planned weight or better; sets you didn't log count as not met). One database fu
 At the end you can also tap a **feeling** from 1 (awful) to 5 (great). Claude reads both next to each other: a high score
 with a low feeling means the session cost a lot of recovery; a low score with a high feeling means the plan was too heavy.
 Imported Hevy sessions followed no plan, so they have no score. View: `session_scores`.
+
+## Heart rate during a workout
+
+While a workout is open on the watch, the watch records your heart rate (Wear OS Health Services, in a small foreground
+service, so it goes on with the screen off; the readings arrive in batches to save battery). The top of every workout screen
+shows the current value. When the workout is over the readings go to the database with `submit_session_hr`, which keeps the
+average, the highest and one value every 10 seconds; the session page on the phone shows them with a curve. The watch asks
+once for the heart rate permission; without it, or when another app is already tracking a workout (the watch allows one at a
+time), the workout simply has no heart rate. A workout done only on the phone has none either.
 
 ## Runs
 

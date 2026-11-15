@@ -50,6 +50,24 @@ It was built and tested for a Wear OS watch (Wi-Fi), Wear OS 6 and up (minSdk 33
 
 It does not edit routines, show charts or manage check-ins. Those stay on the phone.
 
+## Heart rate
+
+While a workout is open on the watch, `HeartRateService` (a foreground service of type `health`) records heart rate with
+Health Services' `ExerciseClient` (exercise type strength training, or generic workout if the watch lacks it; only the heart
+rate data type, no GPS). Health Services samples with the screen off and delivers in batches, so nothing special is done
+about batching. The service keeps at most one reading every 5 seconds in a small file per workout (`files/hr/<id>.csv`), so
+nothing is lost if the app is closed, and the "workout going on" notification is the service's own notification.
+
+- The top of each workout screen shows the latest value next to the clock.
+- When the workout is over (finished here or on the phone), the readings are sent with `rpc/submit_session_hr` after the
+  workout itself has synced, then the file is deleted. If the server refuses them (the session was deleted) they are dropped.
+- Permission: `android.permission.health.READ_HEART_RATE` on Wear OS 6 and later, `BODY_SENSORS` before. Asked once, together
+  with the notification permission, when a workout opens. Without it the workout works as before, with no heart rate.
+- The watch allows one tracked exercise at a time across all apps. If another app is tracking one when the workout opens,
+  this app does not start its own (it would end theirs), so that workout has no heart rate.
+- The logic that can be tested without a watch (thinning the readings, building the upload) is in `data/HeartRateStore.kt`,
+  with unit tests.
+
 ## Signing in on a watch
 
 No typing: the watch is paired with a **6-digit code** made on the phone.

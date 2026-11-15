@@ -1,6 +1,7 @@
 package com.gymlogger.watch
 
 import android.Manifest
+import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -19,13 +20,18 @@ import androidx.wear.ongoing.Status
  */
 object OngoingWorkout {
     private const val CHANNEL = "workout"
-    private const val ID = 7
+    const val ID = 7
 
     fun hasPermission(context: Context) =
         Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
     fun show(context: Context, title: String, startedAtMs: Long) {
         if (!hasPermission(context)) return
+        NotificationManagerCompat.from(context).notify(ID, notification(context, title, startedAtMs))
+    }
+
+    /** Builds the notification (and registers it as the ongoing activity). The heart rate service shows this same one. */
+    fun notification(context: Context, title: String, startedAtMs: Long): Notification {
         val notifications = NotificationManagerCompat.from(context)
         notifications.createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL, NotificationManagerCompat.IMPORTANCE_LOW).setName("Workout in progress").build(),
@@ -55,7 +61,7 @@ object OngoingWorkout {
             .setStatus(status)
             .build()
             .apply(context)
-        notifications.notify(ID, builder.build())
+        return builder.build()
     }
 
     fun hide(context: Context) = NotificationManagerCompat.from(context).cancel(ID)

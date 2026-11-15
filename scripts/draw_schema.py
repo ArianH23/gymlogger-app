@@ -19,7 +19,7 @@ T = {
     "routines": (440, 60, CAT, ["id  PK", "name  (Workout A/B/C...)", "position", "plan_requested_at  (last Claude request)"], STAMPS),
     "sessions": (440, 250, LOG, ["id  PK", "routine_id  → routines  (can be empty)", "title", "started_at", "ended_at", "notes",
                                   "source  app / hevy_import", "feeling  1-5 (optional)", "live  (the open workout's layout)",
-                                  "live_updated_at"], STAMPS),
+                                  "live_updated_at", "avg_hr_bpm · max_hr_bpm · hr_track  (from the watch)"], STAMPS),
     "sets": (440, 540, LOG, ["id  PK", "session_id  → sessions", "exercise_id  → exercises", "set_no", "side  L / R / empty",
                               "weight_kg  (pair total / assistance)", "reps", "is_warmup", "logged_at"], STAMPS),
     "planned_sessions": (850, 200, PLAN, ["id  PK", "routine_id  → routines", "created_by  rules / claude", "status  pending/used/superseded",
@@ -86,6 +86,7 @@ FUNCS = [
     ("muscle_defs() / exercise_muscle_defaults()", "the 16 muscles, and the standard muscle tags by exercise name"),
     ("export_hevy_csv(only_app)", "your workouts as a CSV file Hevy can import"),
     ("submit_run(json)", "saves a run from its points: distance, moving time, splits, elevation"),
+    ("submit_session_hr(session, samples)", "saves the heart rate the watch recorded during a session"),
     ("create_watch_pairing() / claim_watch_pairing(code)", "sign the watch in with a 6-digit code"),
     ("round_to_step · deload_weight · set_updated_at · workout_json · watch_code_hash", "small helpers"),
     ("tag_new_exercise · hevy_exercise_name · csv_field · haversine_m", "small helpers"),
@@ -156,7 +157,7 @@ legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 70}" width="1580
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="{H}" viewBox="0 0 1640 {H}" font-family="Segoe UI, Arial, sans-serif">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#444"/></marker></defs>
 <rect width="1640" height="{H}" fill="#fff"/>
-<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 30 functions</text>
+<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 31 functions</text>
 {"".join(arrows)}{tables}{p1}{p2}{legend}</svg>'''
 
 out = Path(__file__).resolve().parent.parent / "docs" / "schema.svg"

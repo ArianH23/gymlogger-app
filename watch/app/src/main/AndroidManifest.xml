@@ -9,6 +9,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The rest timer is an alarm: it must go off on time while the watch sleeps (granted at install for timer apps) -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Heart rate during a workout: its own permission from Wear OS 6, the body sensors one before that -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.BODY_SENSORS" android:maxSdkVersion="35" />
+    <!-- The recording runs in a foreground service, so it goes on while the screen is off -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
     <application
         android:allowBackup="false"
@@ -32,5 +38,6 @@
         </activity>
 
         <receiver android:name=".RestAlarmReceiver" android:exported="false" />
+        <service android:name=".HeartRateService" android:exported="false" android:foregroundServiceType="health" />
     </application>
 </manifest>

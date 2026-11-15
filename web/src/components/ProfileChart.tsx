@@ -3,14 +3,15 @@ const H = 120
 const M = { left: 38, right: 8, top: 10, bottom: 22 }
 
 type Props = {
-  points: { x: number; y: number }[] // x = km along the run
+  points: { x: number; y: number }[] // x = km along a run, or minutes into a session
   color: string
   label: string // what is plotted, for screen readers
   unit: string
+  xUnit?: string // what x is measured in (km by default)
 }
 
-/** One value along the distance of a run (altitude, heart rate): a thin line over a faint wash, with the low and high marked. */
-export default function ProfileChart({ points, color, label, unit }: Props) {
+/** One value along a run or a session (altitude, heart rate): a thin line over a faint wash, with the low and high marked. */
+export default function ProfileChart({ points, color, label, unit, xUnit = 'km' }: Props) {
   if (points.length < 2) return null
   const maxX = points[points.length - 1].x || 1
   const ys = points.map((p) => p.y)
@@ -24,7 +25,7 @@ export default function ProfileChart({ points, color, label, unit }: Props) {
   const base = H - M.bottom
 
   return (
-    <svg className="profile" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}: from ${Math.round(lo)} to ${Math.round(hi)} ${unit} over ${maxX.toFixed(2)} km`}>
+    <svg className="profile" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}: from ${Math.round(lo)} to ${Math.round(hi)} ${unit} over ${maxX.toFixed(xUnit === 'km' ? 2 : 0)} ${xUnit}`}>
       <line x1={M.left} x2={W - M.right} y1={py(hi)} y2={py(hi)} className="chart-grid" />
       <line x1={M.left} x2={W - M.right} y1={base} y2={base} className="chart-grid" />
       <path d={area} fill={color} opacity="0.12" />
@@ -39,7 +40,7 @@ export default function ProfileChart({ points, color, label, unit }: Props) {
         0
       </text>
       <text x={W - M.right} y={H - 5} textAnchor="end" className="chart-axis">
-        {maxX.toFixed(1)} km
+        {maxX.toFixed(xUnit === 'km' ? 1 : 0)} {xUnit}
       </text>
     </svg>
   )

@@ -66,6 +66,8 @@ dependencies {
     implementation("androidx.wear.compose:compose-navigation:1.7.1")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.wear:wear-ongoing:1.1.0") // the "workout going on" indicator on the watch face
+    implementation("androidx.health:health-services-client:1.1.0") // heart rate during a workout
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0") // await() on Health Services calls
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")

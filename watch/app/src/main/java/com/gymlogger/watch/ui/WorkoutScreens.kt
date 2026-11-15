@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +60,7 @@ private fun mmss(ms: Long): String {
 
 private fun Row.label() = if (side == null) "Set $setNo" else "Set $setNo · $side"
 
-/** The top of the screen during a workout: the time of day, then how long the workout has been going ("19:42 · 24:10"). */
+/** The top of the screen during a workout: the time of day, how long the workout has been going, and the heart rate when it is being recorded ("19:42 · 24:10 · ♥ 132"). */
 @Composable
 fun WorkoutClock(startedAt: String, modifier: Modifier = Modifier) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -74,9 +75,11 @@ fun WorkoutClock(startedAt: String, modifier: Modifier = Modifier) {
     val elapsed = if (seconds >= 3600) "${seconds / 3600}:${(seconds % 3600 / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
     else "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
     val time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+    val bpm by com.gymlogger.watch.HeartRate.bpm.collectAsState()
     LayoutRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(elapsed, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        bpm?.let { Text("\u2665 $it", style = MaterialTheme.typography.labelSmall, color = Danger) }
     }
 }
 

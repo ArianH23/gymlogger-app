@@ -54,6 +54,11 @@ fun Workout.syncPayload(sendLive: Boolean): String {
 
 fun Api.syncWorkout(payload: String): SyncResult = json.decodeFromString(post("rpc/sync_workout", """{"p_workout":$payload}"""))
 
+/** Saves the heart rate recorded during a session: [samplesJson] is [[seconds from the start, bpm], ...]. */
+fun Api.submitSessionHr(sessionId: String, samplesJson: String) {
+    post("rpc/submit_session_hr", """{"p_session_id":"$sessionId","p_samples":$samplesJson}""")
+}
+
 fun Api.syncDiscard(id: String): SyncResult = json.decodeFromString(post("rpc/sync_workout", """{"p_workout":{"id":"$id","discard":true}}"""))
 
 /** The workout open on any device, or null. */

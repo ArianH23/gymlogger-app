@@ -121,10 +121,13 @@ class Api(context: Context) {
             .post(jsonBody.toRequestBody(jsonType))
             .build()
         http.newCall(request).execute().use { r ->
-            if (!r.isSuccessful) throw IOException("Error ${r.code}")
+            if (!r.isSuccessful) throw HttpError(r.code)
             return r.body.string()
         }
     }
 
     class SignedOut : IOException("Signed out")
+
+    /** The server answered, but with an error. 4xx means the request itself was refused (trying again will not help). */
+    class HttpError(val code: Int) : IOException("Error $code")
 }

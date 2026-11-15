@@ -42,8 +42,9 @@ class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
 
     // Android asks once for permission to show the "workout going on" indicator.
-    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-        vm.workout?.let { OngoingWorkout.show(this, it.title, Instant.parse(it.startedAt).toEpochMilli()) }
+    // and for the heart rate sensor. Both are optional: a workout works without either.
+    private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        vm.permissionsAnswered()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +66,13 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) { vm.loadRoutines() }
                     BackHandler(enabled = vm.screen != Screen.Routines) { vm.back() }
                     LaunchedEffect(vm.workout != null) {
-                        if (vm.workout != null && !OngoingWorkout.hasPermission(this@MainActivity)) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        if (vm.workout != null) {
+                            val missing = listOfNotNull(
+                                Manifest.permission.POST_NOTIFICATIONS.takeIf { !OngoingWorkout.hasPermission(this@MainActivity) },
+                                HeartRate.permission.takeIf { !HeartRate.hasPermission(this@MainActivity) },
+                            )
+                            if (missing.isNotEmpty()) askPermissions.launch(missing.toTypedArray())
+                        }
                     }
                     // When the rest has ended and cleared, leave its screen.
                     LaunchedEffect(vm.restEndsAt) { if (vm.restEndsAt == null && vm.screen is Screen.Rest) vm.back() }

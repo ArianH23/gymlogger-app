@@ -231,12 +231,17 @@ And how each recent session went, one row each (`met_pct` is the share of planne
 the app shows, `feeling` is the owner's own 1-5 tap at the end of the session):
 
 ```sql
-select s.started_at::date as day, s.title, sc.planned_sets, sc.met_sets, sc.met_pct, sc.tier, sc.feeling
+select s.started_at::date as day, s.title, sc.planned_sets, sc.met_sets, sc.met_pct, sc.tier, sc.feeling,
+       s.avg_hr_bpm, s.max_hr_bpm
 from session_scores sc
 join sessions s on s.id = sc.session_id
 order by sc.started_at desc
 limit 8;
 ```
+
+`avg_hr_bpm` and `max_hr_bpm` are the heart rate the watch recorded during the session (null when the watch was not used).
+Read them as context only: a session of the same routine with a clearly higher average than usual, next to a low feeling, is
+one more sign of poor recovery. Do not set targets from heart rate.
 
 And the latest raw check-ins, with the owner's own notes:
 
