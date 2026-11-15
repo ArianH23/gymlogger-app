@@ -1,5 +1,11 @@
 package com.gymlogger.watch.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -21,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -97,28 +105,54 @@ private fun restLeft(endsAt: Long?): Long? {
     return (endsAt - now).coerceAtLeast(0)
 }
 
-/** "Rest 1:12", counting down; "Rest over" when it reaches zero (the watch vibrates then). Tap it for the rest timer's controls. */
+/** Goes gently between full and dimmed, about once a second: what "rest over" uses to catch the eye. */
+@Composable
+private fun pulse(): Float {
+    val transition = rememberInfiniteTransition(label = "rest over")
+    val alpha by transition.animateFloat(1f, 0.72f, infiniteRepeatable(tween(550), RepeatMode.Reverse), label = "pulse")
+    return alpha
+}
+
+/**
+ * "Rest 1:12", counting down in the usual green. When it reaches zero (the watch vibrates then) it turns into a gold
+ * pill that says "Rest over" and pulses, so it is hard to miss. Tap it for the rest timer's controls.
+ */
 @Composable
 fun RestChip(endsAt: Long?, onClick: () -> Unit) {
     val left = restLeft(endsAt) ?: return
-    Text(
-        if (left == 0L) "Rest over" else "Rest ${mmss(left)}",
-        color = MaterialTheme.colorScheme.primary,
-        style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 4.dp),
-    )
+    if (left == 0L) {
+        Text(
+            "Rest over",
+            color = MaterialTheme.colorScheme.onSecondary,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .background(MaterialTheme.colorScheme.secondary.copy(alpha = pulse()), RoundedCornerShape(50))
+                .padding(horizontal = 14.dp, vertical = 5.dp),
+        )
+    } else {
+        Text(
+            "Rest ${mmss(left)}",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 4.dp),
+        )
+    }
 }
 
 /** The rest timer: the countdown, -15 / +15, Skip, and whether the watch vibrates at the end. */
 @Composable
 fun RestScreen(endsAt: Long?, alarmOn: Boolean, onAdjust: (Int) -> Unit, onToggleAlarm: () -> Unit, onSkip: () -> Unit) {
     val left = restLeft(endsAt)
+    val over = left == null || left == 0L
+    val gold = MaterialTheme.colorScheme.secondary.copy(alpha = if (over) pulse() else 1f)
     Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Rest", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Rest", style = MaterialTheme.typography.labelMedium, color = if (over) gold else MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            if (left == null || left == 0L) "Over" else mmss(left),
+            if (over) "Over" else mmss(left ?: 0),
             style = MaterialTheme.typography.numeralLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = if (over) gold else MaterialTheme.colorScheme.primary, // gold and pulsing once the rest is over
         )
         LayoutRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FilledTonalButton(onClick = { onAdjust(-15) }, modifier = Modifier.width(58.dp).height(40.dp)) { Text("-15") }
