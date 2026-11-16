@@ -68,6 +68,16 @@ nothing is lost if the app is closed, and the "workout going on" notification is
 - The logic that can be tested without a watch (thinning the readings, building the upload) is in `data/HeartRateStore.kt`,
   with unit tests.
 
+## Machine taken: the backup exercise
+
+`workout_start` gives each exercise its backup when the routine has one (`backup`, in the same shape as an exercise, with
+sets that start from what was done last time). While nothing is logged for an exercise, its screen shows **Machine taken?**
+with the backup's name: one tap puts the backup in the exercise's place (`Workout.swapToBackup` in `WorkoutLogic.kt`, the same
+rule as the phone). The planned exercise is kept as the backup's backup, so the button then reads **Back to planned** and the
+same tap undoes it. Sets added to or removed from the old exercise do not carry over. The change travels to the phone like
+any other change to the workout's layout. Nothing is offered once a set is logged, or when the backup is already one of the
+workout's exercises.
+
 ## Signing in on a watch
 
 No typing: the watch is paired with a **6-digit code** made on the phone.

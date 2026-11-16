@@ -208,6 +208,18 @@ order by week_start desc, sets desc;
 `session_muscles` (per session) and `monthly_muscles` have the same shape. `muscle_defs()` lists all 16 muscles, so you can
 spot the ones missing from the results.
 
+The same sets as a balance between two sides of the body: push against pull, front against back, upper against lower body,
+quads against hamstrings (`a_share` is side a's part of the two sides, 0.5 = even; `muscle_balance_defs()` says which
+muscles are on each side). A plain comparison: the evidence notes give no target ratio, so do not invent one. Use it the way
+you use the muscle sets, to notice a side that keeps getting clearly less, and suggest rather than restructure:
+
+```sql
+select week_start, label, a_label, a_sets, b_label, b_sets, a_share
+from weekly_balance
+where week_start >= current_date - 28
+order by week_start desc, ord;
+```
+
 The owner's runs. You never plan runs (they are spontaneous), but they cost leg recovery: check them before deciding leg
 work, and mention it in the plan notes when a hard or long run is close to the session (`pace_s_per_km` is moving seconds per
 km; `run_bests` has the fastest 5 km, fastest kilometre and longest run):
@@ -242,6 +254,26 @@ limit 8;
 `avg_hr_bpm` and `max_hr_bpm` are the heart rate the watch recorded during the session (null when the watch was not used).
 Read them as context only: a session of the same routine with a clearly higher average than usual, next to a low feeling, is
 one more sign of poor recovery. Do not set targets from heart rate.
+
+When the watch recorded the session, `set_heart_rate` has the heart rate per set: the peak around the set (`peak_bpm`) and how
+far it fell in the rest after it (`drop_bpm`, null when the next set followed too soon). Context only, like the session
+numbers: you do not need it to plan, and you never set targets from it.
+
+A planned exercise can have a backup (`routine_exercises.backup_exercise_id`): what the owner does instead when the machine
+is taken. You do not plan the backup. When it was done in place of the planned exercise, the session is listed in
+`session_swaps` (`exercise_id` = the planned one, `backup_exercise_id` = what was done). That is not a skipped exercise and
+says nothing about recovery: progress the planned exercise from its own last session, as usual. The swapped exercise's sets
+are left out of that session's score.
+
+```sql
+select s.started_at::date as day, e.name as planned, b.name as done_instead
+from session_swaps w
+join sessions s on s.id = w.session_id
+join exercises e on e.id = w.exercise_id
+join exercises b on b.id = w.backup_exercise_id
+order by s.started_at desc
+limit 6;
+```
 
 And the latest raw check-ins, with the owner's own notes:
 

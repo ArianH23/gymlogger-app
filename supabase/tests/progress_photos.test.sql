@@ -24,14 +24,17 @@ select lives_ok($$insert into public.progress_photos (user_id, taken_on, pose, p
 
 select is((select count(*) from pg_policies where schemaname = 'public' and tablename = 'progress_photos'), 1::bigint, 'row level security policy exists on progress_photos');
 select is((select relrowsecurity from pg_class where oid = 'public.progress_photos'::regclass), true, 'row level security is on');
-select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'progress_photos_%'), 3::bigint,
-          'the files have three policies: read, add and delete');
+-- The files' policies and the bucket are checked only where file storage is set up (CI runs the database without it).
+select case when exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'objects' and column_name = 'bucket_id')
+  then is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'progress_photos_%'), 3::bigint,
+          'the files have three policies: read, add and delete')
+  else pass('file storage is not set up here: file policies not checked')
+end;
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'progress_photos_%' and roles <> '{authenticated}'), 0::bigint,
-          'and none of them is open to people who are not signed in');
+          'none of them is open to people who are not signed in');
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'progress_photos_%'
             and coalesce(qual, with_check) not like '%progress-photos%'), 0::bigint, 'each one is limited to the progress-photos bucket');
 
--- The bucket is private (checked only where file storage is set up: CI runs the database without it).
 select case when exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'allowed_mime_types')
   then is((select public from storage.buckets where id = 'progress-photos'), false, 'the bucket is private')
   else pass('file storage is not set up here: bucket not checked')

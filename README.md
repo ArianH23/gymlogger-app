@@ -2,7 +2,8 @@
 
 A personal training app that replaces Hevy. You log sets on your phone or your watch; when you ask, Claude plans the
 session you are about to do from your history; the app shows that plan next to what you did last time and rates how each
-session went. It also keeps your runs, your body measurements, which muscles you trained, and your heart rate during workouts.
+session went. It also keeps your runs, your body measurements and progress photos, which muscles you trained, and your heart
+rate during workouts.
 
 - **Phone app**: an installable web app (PWA), works offline. `web/`
 - **Watch app**: a native Wear OS app (Kotlin, Compose) for a Pixel Watch. `watch/`
@@ -43,8 +44,8 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (29 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 401 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (33 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 464 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -83,6 +84,29 @@ shows the current value. When the workout is over the readings go to the databas
 average, the highest and one value every 10 seconds; the session page on the phone shows them with a curve. The watch asks
 once for the heart rate permission; without it, or when another app is already tracking a workout (the watch allows one at a
 time), the workout simply has no heart rate. A workout done only on the phone has none either.
+
+Per set, the database works out two more numbers from what is already stored (the session's curve and the time each set was
+logged), with nothing new recorded: the peak around the set, and how far the heart rate fell in the rest after it (view
+`set_heart_rate`). The session page shows them beside each set. The peak is the highest value from 60 seconds before the set
+was logged to 20 seconds after; the drop is left empty when the next set followed too soon to tell.
+
+## Backup exercises (machine taken)
+
+In the routine editor each exercise can have one backup: what you do instead when the machine is taken. While nothing is
+logged for the planned exercise, the workout offers the backup with one tap, on the phone ("Machine taken? Do ...") and on
+the watch ("Machine taken?" on the exercise's screen); the same tap swaps it back. The backup takes the planned exercise's
+place with the same number of sets, each starting from what you did last time (`workout_start` and `routine_backups` build it;
+it is not planned by Claude). When the session is finished, `finish_session` records the swap in `session_swaps`, so the
+planned exercise is left out of the session's score instead of counting as sets not done, and Claude reads it as a swap, not
+as a skipped exercise.
+
+## Progress photos
+
+Body tab, **Progress photos**: a front, side and back photo with a date, and the same pose on two dates side by side. The
+phone makes each photo smaller (1600 pixels on the longer side) before saving it. The files are in a private storage bucket
+(`progress-photos`), each user's in their own folder, and only their owner, signed in, can read, add or delete them; the
+table `progress_photos` lists them. One photo per day and pose: a new one replaces it. Claude does not see the photos.
+It needs signal (photos are not kept on the phone).
 
 ## Runs
 
@@ -151,6 +175,11 @@ database sums that per session, per week and per month (`session_muscles`, `week
 it as bars plus a front and back figure with the worked muscles painted in: on each session, on the Body tab by week and by
 month, and as tags under each exercise (in the workout and on its page).
 
+Under the weekly and monthly muscles, **Balance** compares two sides of the body with the same sets: push against pull, front
+against back, upper against lower body, quads against hamstrings (`weekly_balance`, `monthly_balance`; which muscle is on
+which side is in `muscle_balance_defs()`). It is a comparison with a tick at the even point, not a target: a muscle on
+neither side of a comparison is left out of it.
+
 ## Export to Hevy
 
 Body tab, "Export": downloads your workouts as a CSV for Hevy, one row per set. Hevy can only import files in the format of the
@@ -208,14 +237,14 @@ it at the local database (below).
 
 **Local database (safe sandbox).** Needs Docker Desktop running.
 `npx supabase start -x imgproxy,edge-runtime,logflare,vector,realtime,storage-api,inbucket,mailpit`, then
-`npx supabase test db`. To run the app against it, put the local URL and key in `web/.env.localdb.local` and use
+`npx supabase test db` (leave `storage-api` out of that list to try progress photos locally). To run the app against it, put the local URL and key in `web/.env.localdb.local` and use
 `npx vite --mode localdb`. `npx supabase db reset` rebuilds it from the migrations. After adding a migration, apply it
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (401 checks). Phone: `cd web && npm test` (the run-file reader),
+**Run every test.** Database: `npx supabase test db` (464 checks). Phone: `cd web && npm test` (the run-file reader and the photo sizes),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (32 tests). Watch:
-`cd watch && .\build.ps1 testDebugUnitTest` (20 tests). GitHub runs all of them on every push.
+`cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
 
 **Change the database.** Add a new file in `supabase/migrations/`, add a pgTAP test, run `npx supabase migration up`
 and `npx supabase test db`. Publishing is done from GitHub, not from this PC (next paragraph).
@@ -312,6 +341,8 @@ and scratch files out. Comments in it must be on their own line (a `#` after a p
 
 - A warm-up toggle in the app (you don't use warm-ups; imported ones are stored and left out of the numbers).
 - Heart rate for a workout done only on the phone: the watch is what records it.
+- Photos or animations of the exercises.
+- Progress photos with no signal, and showing them to Claude.
 - Sharing a run straight from Google Health's share sheet: for now you pick the exported file.
 - Walks and hikes from Strava: only runs are imported.
 - An estimate of your natural ceiling from wrist and ankle: the two measurements are stored, the formula is not chosen yet.

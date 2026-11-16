@@ -40,22 +40,27 @@ comment on column public.progress_photos.created_at is 'Row creation time (serve
 comment on column public.progress_photos.updated_at is 'Last change (server clock, set by trigger).';
 comment on column public.progress_photos.deleted_at is 'Soft delete marker. Ignore rows where this is not null.';
 
--- The bucket: private, JPEG only, 5 MB a file at most. (Skipped where file storage is not set up, as in the test database of CI.)
+-- The bucket and who may touch its files. Both are skipped where file storage is not set up (the test database of CI runs
+-- without it); the real project and a local stack started with file storage have it.
 do $$
 begin
+  -- The bucket: private, JPEG only, 5 MB a file at most.
   if exists (select 1 from information_schema.columns
              where table_schema = 'storage' and table_name = 'buckets' and column_name = 'allowed_mime_types') then
     insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
     values ('progress-photos', 'progress-photos', false, 5242880, array['image/jpeg'])
     on conflict (id) do nothing;
   end if;
+
+  -- The files: each signed-in user can read, add and delete only what is inside their own folder of this bucket.
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'storage' and table_name = 'objects' and column_name = 'bucket_id') then
+    execute $policy$create policy progress_photos_read_own on storage.objects for select to authenticated
+      using (bucket_id = 'progress-photos' and name like (select auth.uid())::text || '/%')$policy$;
+    execute $policy$create policy progress_photos_add_own on storage.objects for insert to authenticated
+      with check (bucket_id = 'progress-photos' and name like (select auth.uid())::text || '/%')$policy$;
+    execute $policy$create policy progress_photos_delete_own on storage.objects for delete to authenticated
+      using (bucket_id = 'progress-photos' and name like (select auth.uid())::text || '/%')$policy$;
+  end if;
 end
 $$;
-
--- The files: each signed-in user can read, add and delete only what is inside their own folder of this bucket.
-create policy progress_photos_read_own on storage.objects for select to authenticated
-  using (bucket_id = 'progress-photos' and name like (select auth.uid())::text || '/%');
-create policy progress_photos_add_own on storage.objects for insert to authenticated
-  with check (bucket_id = 'progress-photos' and name like (select auth.uid())::text || '/%');
-create policy progress_photos_delete_own on storage.objects for delete to authenticated
-  using (bucket_id = 'progress-photos' and name like (select auth.uid())::text || '/%');

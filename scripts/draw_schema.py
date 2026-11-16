@@ -12,7 +12,8 @@ STAMPS = "user_id · timestamps · deleted_at"
 # name: (x, y, palette, columns, footer)
 T = {
     "routine_exercises": (30, 60, CAT, ["id  PK", "routine_id  → routines", "exercise_id  → exercises", "position", "target_sets",
-                                         "superset_group", "priority  (1 = never skip)"], STAMPS),
+                                         "superset_group", "priority  (1 = never skip)",
+                                         "backup_exercise_id  → exercises  (machine taken)"], STAMPS),
     "exercises": (30, 330, CAT, ["id  PK", "name  (unique)", "equipment", "unilateral  (L/R rows)", "dumbbell_pair  (weight = pair total)",
                                  "load_type  weighted/bodyweight/assisted", "rep_min", "rep_max", "increment_kg  (can be empty)"], STAMPS),
     "session_exercise_notes": (30, 640, LOG, ["id  PK", "session_id  → sessions", "exercise_id  → exercises", "note"], STAMPS),
@@ -38,6 +39,9 @@ T = {
                              "title · started_at · notes", "distance_m · elapsed_s · moving_s", "elevation_gain_m · avg / max heart rate · calories",
                              "track  (thinned route: time, position, altitude, hr)"], STAMPS),
     "run_splits": (850, 870, LOG, ["run_id  → runs  +  km  (PK)", "distance_m · seconds", "elev_change_m · avg_hr_bpm"], "user_id"),
+    "session_swaps": (30, 930, LOG, ["session_id  → sessions  +  exercise_id  (PK)", "backup_exercise_id  → exercises  (done instead)"],
+                      "user_id · created_at"),
+    "progress_photos": (1260, 958, BODY, ["id  PK", "taken_on  +  pose  front / side / back", "path  (the file, in a private bucket)"], STAMPS),
     "watch_pairings": (1260, 480, WATCH, ["id  PK", "code_hash  (the code is never stored)", "attempts  (dies at 5 wrong)", "expires_at  (10 minutes)",
                                            "used_at", "cancelled_at"], "user_id · created_at"),
 }
@@ -68,6 +72,9 @@ VIEWS = [
     ("session_muscles", "per session and muscle: weighted sets and share of the session"),
     ("weekly_muscles", "the same muscle sets, summed per week"),
     ("monthly_muscles", "the same muscle sets, summed per month"),
+    ("weekly_balance", "per week: push against pull, front against back, upper against lower, quads against hamstrings"),
+    ("monthly_balance", "the same balance, per month"),
+    ("set_heart_rate", "per set: the peak heart rate around it and how far it fell in the rest after"),
 ]
 FUNCS = [
     ("generate_plan(routine)", "progression rules → the automatic plan"),
@@ -84,6 +91,8 @@ FUNCS = [
     ("session_tier(pct)", "great / good / average / weak / poor"),
     ("shape_defaults()", "the model: each measurement as a share of height, grow or shrink"),
     ("muscle_defs() / exercise_muscle_defaults()", "the 16 muscles, and the standard muscle tags by exercise name"),
+    ("muscle_balance_defs()", "the four balance comparisons and the muscles on each side"),
+    ("routine_backups(routine) / backup_exercise_plan(…)", "the backup exercises of a routine, ready to swap in"),
     ("export_hevy_csv(only_app)", "your workouts as a CSV file Hevy can import"),
     ("submit_run(json)", "saves a run from its points: distance, moving time, splits, elevation"),
     ("submit_session_hr(session, samples)", "saves the heart rate the watch recorded during a session"),
@@ -157,7 +166,7 @@ legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 70}" width="1580
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="{H}" viewBox="0 0 1640 {H}" font-family="Segoe UI, Arial, sans-serif">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#444"/></marker></defs>
 <rect width="1640" height="{H}" fill="#fff"/>
-<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 31 functions</text>
+<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 34 functions</text>
 {"".join(arrows)}{tables}{p1}{p2}{legend}</svg>'''
 
 out = Path(__file__).resolve().parent.parent / "docs" / "schema.svg"
