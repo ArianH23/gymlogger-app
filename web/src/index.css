@@ -218,6 +218,8 @@ h2.month:first-of-type { margin-top: 4px; }
 .stat-value { font-size: var(--t-22); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .session-table { padding: 0; }
 .session-table .table-row { grid-template-columns: 0.6fr 1.6fr 1fr; }
+.session-table.with-hr .table-row { grid-template-columns: 0.5fr 1.5fr 0.9fr 1.1fr; }
+.session-table.with-hr small { font-size: var(--t-12); }
 
 /* Page action, title row, forms */
 .edit-link { color: var(--accent); font-weight: 600; }

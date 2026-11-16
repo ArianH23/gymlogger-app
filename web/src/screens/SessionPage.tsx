@@ -40,14 +40,15 @@ export type Block = {
   dumbbellPair: boolean
   loadType: string
   first: string
-  sets: { setNo: number; weight: number | null; reps: string; warmup: boolean }[]
+  // peak / drop: the heart rate around the set and how far it fell in the rest after it (view set_heart_rate), when recorded
+  sets: { setNo: number; weight: number | null; reps: string; warmup: boolean; peak?: number | null; drop?: number | null }[]
   note?: string
 }
 
 export type Loaded = { session: Session; blocks: Block[]; sets: number; volume: number; score: Score | null }
 
 export async function loadSession(id: string): Promise<Loaded> {
-  const [s, sets, notes, scores] = await Promise.all([
+  const [s, sets, notes, scores, hr] = await Promise.all([
     supabase.from('sessions').select('id, title, started_at, ended_at, notes, avg_hr_bpm, max_hr_bpm, hr_track').eq('id', id).single(),
     supabase
       .from('sets')
@@ -56,8 +57,11 @@ export async function loadSession(id: string): Promise<Loaded> {
       .is('deleted_at', null),
     supabase.from('session_exercise_notes').select('exercise_id, note').eq('session_id', id).is('deleted_at', null),
     loadScores([id]).catch(() => new Map<string, Score>()), // the score is a bonus: never block the page on it
+    supabase.from('set_heart_rate').select('exercise_id, set_no, peak_bpm, drop_bpm').eq('session_id', id),
   ])
   for (const r of [s, sets, notes]) if (r.error) throw r.error
+  // the heart rate per set is a bonus too: without it the page shows the sets as before
+  const hrBy = new Map((hr.data ?? []).map((h) => [`${h.exercise_id}|${h.set_no}`, { peak: h.peak_bpm as number | null, drop: h.drop_bpm as number | null }]))
 
   const noteBy = new Map((notes.data ?? []).map((n) => [n.exercise_id as string, n.note as string]))
   const byEx = new Map<string, SetRow[]>()
@@ -78,7 +82,8 @@ export async function loadSession(id: string): Promise<Loaded> {
           setCount += 1
           volume += (sorted[0].weight_kg ?? 0) * lowest
         }
-        return { setNo, weight: sorted[0].weight_kg, reps: sorted.map((r) => r.reps ?? '–').join(' / '), warmup }
+        const h = hrBy.get(`${exerciseId}|${setNo}`)
+        return { setNo, weight: sorted[0].weight_kg, reps: sorted.map((r) => r.reps ?? '–').join(' / '), warmup, peak: h?.peak ?? null, drop: h?.drop ?? null }
       })
     return {
       exerciseId,
@@ -199,7 +204,10 @@ export default function SessionPage({ id }: { id: string }) {
               {s.hr_track && s.hr_track.length > 1 && (
                 <ProfileChart points={s.hr_track.map(([t, bpm]) => ({ x: t / 60, y: bpm }))} color="var(--target)" label="Heart rate" unit="bpm" xUnit="min" />
               )}
-              <p className="muted note">Recorded by the watch while the workout was open on it.</p>
+              <p className="muted note">
+                Recorded by the watch while the workout was open on it. Each set below shows its peak, and after the arrow how far the heart rate fell in
+                the rest that followed.
+              </p>
             </div>
           )}
           {muscles.length > 0 && (
@@ -216,17 +224,24 @@ export default function SessionPage({ id }: { id: string }) {
               <button className="ex-title" onClick={() => push({ type: 'exercise', id: b.exerciseId })}>
                 {b.name} <span aria-hidden>›</span>
               </button>
-              <div className="table session-table">
+              <div className={`table session-table${b.sets.some((r) => r.peak != null) ? ' with-hr' : ''}`}>
                 <div className="table-row head">
                   <span>Set</span>
                   <span>{b.loadType === 'assisted' ? 'Assist' : 'Weight'}</span>
                   <span>Reps</span>
+                  {b.sets.some((r) => r.peak != null) && <span>Peak bpm</span>}
                 </div>
                 {b.sets.map((r, i) => (
                   <div className="table-row" key={r.setNo}>
                     <span>{r.warmup ? 'W' : i + 1}</span>
                     <span>{r.weight === null ? '–' : b.dumbbellPair ? `${num(r.weight)} (2×${num(r.weight / 2)})` : num(r.weight)}</span>
                     <span>{r.reps}</span>
+                    {b.sets.some((x) => x.peak != null) && (
+                      <span aria-label={r.peak == null ? 'no heart rate' : `peak ${r.peak} bpm${r.drop != null ? `, fell ${r.drop} in the rest` : ''}`}>
+                        {r.peak ?? '–'}
+                        {r.drop != null && <small className="muted"> ↓{r.drop}</small>}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
