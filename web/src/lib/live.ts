@@ -3,7 +3,7 @@ import type { LoggedSet, PlanExercise, Workout } from './db'
 // The open workout travels between devices as JSON: the plan layout ("live") and the sets. The plan uses the same shape as
 // the database function workout_start returns, so the watch can read it as it is.
 
-type LiveExercise = {
+export type LiveExercise = {
   exercise_id: string
   name: string
   load_type: PlanExercise['loadType']
@@ -12,6 +12,8 @@ type LiveExercise = {
   increment_kg: number | null
   sets: { set_no: number; target_weight_kg: number | null; target_reps_min: number | null; target_reps_max: number | null; note: string | null }[]
   last: { set_no: number; weight_kg: number | null; reps_l: number | null; reps_r: number | null; reps_result: number | null }[]
+  backup?: LiveExercise | null
+  swapped?: boolean
 }
 
 export type Live = {
@@ -43,38 +45,39 @@ export type ServerWorkout = {
   sets: ServerSet[]
 }
 
+const exerciseToLive = (e: PlanExercise): LiveExercise => ({
+  exercise_id: e.exerciseId,
+  name: e.name,
+  load_type: e.loadType,
+  unilateral: e.unilateral,
+  dumbbell_pair: e.dumbbellPair,
+  increment_kg: e.incrementKg ?? null,
+  sets: e.sets.map((s) => ({ set_no: s.setNo, target_weight_kg: s.weightKg, target_reps_min: s.repsMin, target_reps_max: s.repsMax, note: s.note })),
+  last: e.last.map((l) => ({ set_no: l.setNo, weight_kg: l.weightKg, reps_l: l.repsL, reps_r: l.repsR, reps_result: l.repsResult })),
+  backup: e.backup ? exerciseToLive(e.backup) : null,
+  swapped: e.swapped ?? false,
+})
+
+/** One exercise in the shape the database (workout_start, routine_backups) and the watch use, as the phone keeps it. */
+export const exerciseFromLive = (e: LiveExercise): PlanExercise => ({
+  exerciseId: e.exercise_id,
+  name: e.name,
+  loadType: e.load_type,
+  unilateral: e.unilateral,
+  dumbbellPair: e.dumbbell_pair,
+  incrementKg: e.increment_kg === null || e.increment_kg === undefined ? null : Number(e.increment_kg),
+  sets: (e.sets ?? []).map((s) => ({ setNo: s.set_no, weightKg: s.target_weight_kg, repsMin: s.target_reps_min, repsMax: s.target_reps_max, note: s.note })),
+  last: (e.last ?? []).map((l) => ({ setNo: l.set_no, weightKg: l.weight_kg, repsL: l.reps_l, repsR: l.reps_r, repsResult: l.reps_result })),
+  backup: e.backup ? exerciseFromLive(e.backup) : null,
+  swapped: e.swapped ?? false,
+})
+
 export function toLive(w: Workout): Live {
-  return {
-    plan: w.plan.map((e) => ({
-      exercise_id: e.exerciseId,
-      name: e.name,
-      load_type: e.loadType,
-      unilateral: e.unilateral,
-      dumbbell_pair: e.dumbbellPair,
-      increment_kg: e.incrementKg ?? null,
-      sets: e.sets.map((s) => ({ set_no: s.setNo, target_weight_kg: s.weightKg, target_reps_min: s.repsMin, target_reps_max: s.repsMax, note: s.note })),
-      last: e.last.map((l) => ({ set_no: l.setNo, weight_kg: l.weightKg, reps_l: l.repsL, reps_r: l.repsR, reps_result: l.repsResult })),
-    })),
-    extra_sets: w.extraSets,
-    removed_sets: w.removedSets ?? {},
-  }
+  return { plan: w.plan.map(exerciseToLive), extra_sets: w.extraSets, removed_sets: w.removedSets ?? {} }
 }
 
 export function fromLive(live: Live): Pick<Workout, 'plan' | 'extraSets' | 'removedSets'> {
-  return {
-    plan: (live.plan ?? []).map((e) => ({
-      exerciseId: e.exercise_id,
-      name: e.name,
-      loadType: e.load_type,
-      unilateral: e.unilateral,
-      dumbbellPair: e.dumbbell_pair,
-      incrementKg: e.increment_kg ?? null,
-      sets: (e.sets ?? []).map((s) => ({ setNo: s.set_no, weightKg: s.target_weight_kg, repsMin: s.target_reps_min, repsMax: s.target_reps_max, note: s.note })),
-      last: (e.last ?? []).map((l) => ({ setNo: l.set_no, weightKg: l.weight_kg, repsL: l.reps_l, repsR: l.reps_r, repsResult: l.reps_result })),
-    })),
-    extraSets: live.extra_sets ?? {},
-    removedSets: live.removed_sets ?? {},
-  }
+  return { plan: (live.plan ?? []).map(exerciseFromLive), extraSets: live.extra_sets ?? {}, removedSets: live.removed_sets ?? {} }
 }
 
 export const setToServer = (s: LoggedSet): ServerSet => ({

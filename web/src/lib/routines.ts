@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
-export type RoutineItem = { exerciseId: string; targetSets: number }
+/** backupId: the exercise to do instead when the machine is taken (optional). */
+export type RoutineItem = { exerciseId: string; targetSets: number; backupId?: string | null }
 
 const friendly = (e: { code?: string; message: string }) =>
   e.code === '23505' ? 'You already have a routine with that name.' : e.message
@@ -27,6 +28,7 @@ export async function createRoutine(name: string, items: RoutineItem[]): Promise
         exercise_id: it.exerciseId,
         position: i + 1,
         target_sets: it.targetSets,
+        backup_exercise_id: it.backupId ?? null,
         priority: 1,
       })),
     )
@@ -47,14 +49,16 @@ export function suggestRoutineName(): string {
   return 'New workout'
 }
 
-export type EditableRoutine = { name: string; items: (RoutineItem & { name: string })[] }
+export type EditableRoutine = { name: string; items: (RoutineItem & { name: string; backupName?: string | null })[] }
 
 export async function loadRoutineForEdit(id: string): Promise<EditableRoutine> {
   const [r, items] = await Promise.all([
     supabase.from('routines').select('name').eq('id', id).single(),
     supabase
       .from('routine_exercises')
-      .select('exercise_id, target_sets, position, exercises(name)')
+      .select(
+        'exercise_id, target_sets, position, backup_exercise_id, exercises!routine_exercises_exercise_id_fkey(name), backup:exercises!routine_exercises_backup_exercise_id_fkey(name)',
+      )
       .eq('routine_id', id)
       .is('deleted_at', null)
       .order('position'),
@@ -67,6 +71,8 @@ export async function loadRoutineForEdit(id: string): Promise<EditableRoutine> {
       exerciseId: x.exercise_id,
       targetSets: x.target_sets,
       name: (x.exercises as unknown as { name: string }).name,
+      backupId: x.backup_exercise_id as string | null,
+      backupName: (x.backup as unknown as { name: string } | null)?.name ?? null,
     })),
   }
 }
@@ -91,13 +97,17 @@ export async function updateRoutine(id: string, name: string, items: RoutineItem
   for (const [i, it] of items.entries()) {
     const row = byExercise.get(it.exerciseId)
     const result = row
-      ? await supabase.from('routine_exercises').update({ position: i + 1, target_sets: it.targetSets, deleted_at: null }).eq('id', row.id)
+      ? await supabase
+          .from('routine_exercises')
+          .update({ position: i + 1, target_sets: it.targetSets, backup_exercise_id: it.backupId ?? null, deleted_at: null })
+          .eq('id', row.id)
       : await supabase.from('routine_exercises').insert({
           id: crypto.randomUUID(),
           routine_id: id,
           exercise_id: it.exerciseId,
           position: i + 1,
           target_sets: it.targetSets,
+          backup_exercise_id: it.backupId ?? null,
           priority: 1,
         })
     if (result.error) throw new Error(result.error.message)

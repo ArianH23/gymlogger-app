@@ -29,6 +29,7 @@ import com.gymlogger.watch.data.openWorkout
 import com.gymlogger.watch.data.planSet
 import com.gymlogger.watch.data.reconcile
 import com.gymlogger.watch.data.restSeconds
+import com.gymlogger.watch.data.swapToBackup
 import com.gymlogger.watch.data.routines
 import com.gymlogger.watch.data.syncDiscard
 import com.gymlogger.watch.data.syncPayload
@@ -401,6 +402,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (isLastExtra) w.copy(extraSets = w.extraSets + (ex.exerciseId to extra - 1), liveRev = w.liveRev + 1)
             else w.copy(removedSets = w.removedSets + (ex.exerciseId to (w.removedSets[ex.exerciseId].orEmpty() + row.setNo)), liveRev = w.liveRev + 1)
         }
+    }
+
+    /** Machine taken: puts the exercise's backup in its place. Returns the id of the exercise now shown there, or null if nothing changed. */
+    fun swapToBackup(ex: PlanExercise): String? {
+        var now: String? = null
+        change { w -> w.swapToBackup(ex.exerciseId)?.also { now = ex.backup?.exerciseId } }
+        return now
     }
 
     fun addSet(ex: PlanExercise) {

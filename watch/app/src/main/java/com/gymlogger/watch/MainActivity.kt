@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import androidx.wear.compose.material3.MaterialTheme
 import com.gymlogger.watch.data.PlanExercise
 import com.gymlogger.watch.data.Row
+import com.gymlogger.watch.data.canSwap
 import com.gymlogger.watch.data.loggedAt
 import com.gymlogger.watch.data.nextExercise
 import com.gymlogger.watch.data.nextOpenAfter
@@ -128,6 +129,7 @@ class MainActivity : ComponentActivity() {
                     onNextExercise = { w.nextExercise(ex.exerciseId)?.let { vm.screen = Screen.Exercise(it.exerciseId) } },
                     onOpenRow = { row -> vm.screen = Screen.Editor(ex.exerciseId, row) },
                     onAddSet = { vm.addSet(ex) },
+                    onSwap = if (w.canSwap(ex)) ({ vm.swapToBackup(ex)?.let { vm.screen = Screen.Exercise(it) } }) else null,
                 )
             }
             is Screen.Editor -> {

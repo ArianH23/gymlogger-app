@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { db, type LastSet, type PlanExercise, type PlanSet } from './db'
 import { syncPending } from './sync'
+import { exerciseFromLive, type LiveExercise } from './live'
 
 type ExerciseInfo = { name: string; load_type: PlanExercise['loadType']; unilateral: boolean; dumbbell_pair: boolean; increment_kg: number | null }
 
@@ -98,6 +99,13 @@ async function fetchWorkoutPlanFromServer(routineId: string): Promise<PlanExerci
       }
       exercises.get(r.exercise_id)?.last.push(last)
     }
+  }
+
+  // The backups set on the routine ("machine taken?"), ready to swap in. A bonus: without them the plan is still complete.
+  const { data: backups } = await supabase.rpc('routine_backups', { p_routine_id: routineId })
+  for (const [id, b] of Object.entries((backups ?? {}) as Record<string, LiveExercise>)) {
+    const ex = exercises.get(id)
+    if (ex && !exercises.has(b.exercise_id)) ex.backup = exerciseFromLive(b)
   }
 
   return order.map((id) => exercises.get(id)!)

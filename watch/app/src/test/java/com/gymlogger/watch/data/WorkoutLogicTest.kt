@@ -18,6 +18,43 @@ class WorkoutLogicTest {
     private fun logged(ex: String, setNo: Int, reps: Int, side: String? = null) =
         LoggedSet("$ex-$setNo-$side", ex, setNo, side, 40.0, reps, "2026-01-01T10:0$setNo:00Z")
 
+    // ---- machine taken: swapping an exercise for its backup
+
+    @Test fun swappingPutsTheBackupInTheSamePlace() {
+        val w = workout(exercise("row"), exercise("press").copy(backup = exercise("dumbbell")), exercise("curl"))
+        val after = w.swapToBackup("press")!!
+        assertEquals(listOf("row", "dumbbell", "curl"), after.plan.map { it.exerciseId })
+        assertEquals(true, after.plan[1].swapped)
+        assertEquals(w.liveRev + 1, after.liveRev) // so the phone gets the change
+    }
+
+    @Test fun theSameTapSwapsBack() {
+        val w = workout(exercise("press").copy(backup = exercise("dumbbell")))
+        val back = w.swapToBackup("press")!!.swapToBackup("dumbbell")!!
+        assertEquals(listOf("press"), back.plan.map { it.exerciseId })
+        assertEquals(false, back.plan[0].swapped)
+        assertEquals("dumbbell", back.plan[0].backup?.exerciseId)
+    }
+
+    @Test fun noSwapOnceASetIsLogged() {
+        val w = workout(exercise("press").copy(backup = exercise("dumbbell")), sets = listOf(logged("press", 1, 8)))
+        assertEquals(false, w.canSwap(w.plan[0]))
+        assertNull(w.swapToBackup("press"))
+    }
+
+    @Test fun noSwapWithoutABackupOrWhenItIsAlreadyInTheWorkout() {
+        assertNull(workout(exercise("press")).swapToBackup("press"))
+        val w = workout(exercise("press").copy(backup = exercise("dumbbell")), exercise("dumbbell"))
+        assertEquals(false, w.canSwap(w.plan[0]))
+    }
+
+    @Test fun addedAndRemovedSetsOfTheOldExerciseDoNotCarryOver() {
+        val w = workout(exercise("press").copy(backup = exercise("dumbbell"))).copy(extraSets = mapOf("press" to 1), removedSets = mapOf("press" to listOf(2)))
+        val after = w.swapToBackup("press")!!
+        assertEquals(emptyMap<String, Int>(), after.extraSets)
+        assertEquals(emptyMap<String, List<Int>>(), after.removedSets)
+    }
+
     // ---- the weight hint, by the reps against the range
 
     @Test fun aboveTheTopOfTheRangeMeansUp() = assertEquals(WeightHint.UP, hintFor("weighted", 11, 6, 10))

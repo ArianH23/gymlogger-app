@@ -211,7 +211,11 @@ fun OverviewScreen(workout: Workout, restEndsAt: Long?, onRest: () -> Unit, onli
 
 /** The sets of one exercise: tap one to log or change it. */
 @Composable
-fun ExerciseScreen(workout: Workout, ex: PlanExercise, restEndsAt: Long?, onRest: () -> Unit, nextExercise: PlanExercise?, onNextExercise: () -> Unit, onOpenRow: (Row) -> Unit, onAddSet: () -> Unit) {
+fun ExerciseScreen(
+    workout: Workout, ex: PlanExercise, restEndsAt: Long?, onRest: () -> Unit, nextExercise: PlanExercise?, onNextExercise: () -> Unit,
+    onOpenRow: (Row) -> Unit, onAddSet: () -> Unit,
+    onSwap: (() -> Unit)?, // set while the exercise can be swapped for its backup (nothing logged yet)
+) {
     val next = workout.nextOpenRow(ex)
     ScalingLazyColumn(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         item { ListHeader { Text(ex.name, maxLines = 2, overflow = TextOverflow.Ellipsis) } }
@@ -230,6 +234,18 @@ fun ExerciseScreen(workout: Workout, ex: PlanExercise, restEndsAt: Long?, onRest
             else FilledTonalButton(onClick = { onOpenRow(row) }, modifier = Modifier.fillMaxWidth(), label = label, secondaryLabel = sec)
         }
         item { OutlinedButton(onClick = onAddSet, modifier = Modifier.fillMaxWidth()) { Text("+ Set") } }
+        val backup = ex.backup
+        if (onSwap != null && backup != null) {
+            item {
+                // Machine taken: one tap puts the backup here (and, once swapped, the planned exercise back).
+                OutlinedButton(
+                    onClick = onSwap,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(if (ex.swapped) "Back to planned" else "Machine taken?") },
+                    secondaryLabel = { Text(backup.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                )
+            }
+        }
         if (nextExercise != null) {
             item {
                 val done = next == null // this exercise is finished: make the way on obvious

@@ -40,6 +40,30 @@ fun Workout.progress(ex: PlanExercise): Pair<Int, Int> {
 
 fun PlanExercise.planSet(setNo: Int): PlanSet? = sets.firstOrNull { it.setNo == setNo }
 
+/** "Machine taken?" is offered while nothing is logged for the exercise, it has a backup, and the backup is not in the workout already. */
+fun Workout.canSwap(ex: PlanExercise): Boolean {
+    val backup = ex.backup ?: return false
+    return sets.none { it.exerciseId == ex.exerciseId } && plan.none { it.exerciseId == backup.exerciseId }
+}
+
+/**
+ * The workout with the exercise's backup in its place (the same rule as the phone). The planned exercise becomes the
+ * backup's backup, so the same tap swaps it back. Sets added to or removed from the old exercise do not carry over.
+ * Null when it cannot be swapped.
+ */
+fun Workout.swapToBackup(exerciseId: String): Workout? {
+    val ex = exercise(exerciseId) ?: return null
+    if (!canSwap(ex)) return null
+    val backup = ex.backup ?: return null
+    val swapped = backup.copy(backup = ex.copy(backup = null, swapped = false), swapped = !ex.swapped)
+    return copy(
+        plan = plan.map { if (it.exerciseId == exerciseId) swapped else it },
+        extraSets = extraSets - exerciseId,
+        removedSets = removedSets - exerciseId,
+        liveRev = liveRev + 1,
+    )
+}
+
 /** The step of the weight wheel: the exercise's own increment, or 2.5 kg when none is set. */
 fun PlanExercise.stepKg(): Double = incrementKg?.takeIf { it > 0 } ?: DEFAULT_STEP_KG
 

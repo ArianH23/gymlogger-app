@@ -243,6 +243,10 @@ h2.month:first-of-type { margin-top: 4px; }
 .routine-item { margin-bottom: 10px; }
 .routine-item-name { font-size: var(--t-18); font-weight: 600; margin-bottom: 10px; }
 .routine-item-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.routine-backup { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: var(--t-14); }
+.routine-backup-name { flex: 1; min-width: 120px; }
+.routine-backup .link { padding: 6px 2px; }
+.swap-backup { margin-top: 10px; font-size: var(--t-14); }
 .stepper { display: flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-control); padding: 4px; }
 .stepper button, .item-actions button { width: 44px; height: 44px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--text); font-size: 20px; font-weight: 700; cursor: pointer; }
 .stepper span { min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }

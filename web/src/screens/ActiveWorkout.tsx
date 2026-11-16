@@ -179,6 +179,15 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     await touchLive(w.id)
   }
 
+  /** Machine taken: puts the exercise's backup in its place. The planned one becomes the backup, so the same tap swaps it back. */
+  async function swapToBackup(w: Workout, ex: PlanExercise) {
+    if (!ex.backup) return
+    const { [ex.exerciseId]: _dropped, ...extraSets } = w.extraSets
+    const swapped: PlanExercise = { ...ex.backup, backup: { ...ex, backup: null, swapped: false }, swapped: !ex.swapped }
+    await db.workouts.update(w.id, { plan: w.plan.map((e) => (e.exerciseId === ex.exerciseId ? swapped : e)), extraSets })
+    await touchLive(w.id)
+  }
+
   async function discard(ask = true) {
     if (ask && !window.confirm('Discard this workout and everything logged in it?')) return
     await db.sets.where('sessionId').equals(workoutId).delete()
@@ -296,6 +305,11 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                   </button>
                 )}
               </div>
+              {ex.backup && !logged.some((s) => s.exerciseId === ex.exerciseId) && !workout.plan.some((e) => e.exerciseId === ex.backup!.exerciseId) && (
+                <button className="outline swap-backup" onClick={() => swapToBackup(workout, ex)}>
+                  {ex.swapped ? `Back to ${ex.backup.name}` : `Machine taken? Do ${ex.backup.name}`}
+                </button>
+              )}
             </section>
           )
         })}

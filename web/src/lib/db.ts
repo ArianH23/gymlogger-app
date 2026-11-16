@@ -28,6 +28,9 @@ export type PlanExercise = {
   incrementKg?: number | null // the step for changing the weight (the watch's wheel uses it)
   sets: PlanSet[]
   last: LastSet[]
+  // What to do instead when the machine is taken (set on the routine). Swapping puts it in this place, with this one as its backup.
+  backup?: PlanExercise | null
+  swapped?: boolean // true = this is the backup, standing in for the planned exercise (which is now in `backup`)
 }
 
 export type Workout = {

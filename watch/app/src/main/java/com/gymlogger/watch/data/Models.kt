@@ -35,6 +35,9 @@ data class PlanExercise(
     @SerialName("increment_kg") val incrementKg: Double? = null,
     val sets: List<PlanSet> = emptyList(),
     val last: List<LastSet> = emptyList(),
+    // What to do instead when the machine is taken (set on the routine). Swapping puts it in this place, with this one as its backup.
+    val backup: PlanExercise? = null,
+    val swapped: Boolean = false, // true = this is the backup, standing in for the planned exercise (now in [backup])
 )
 
 /** The answer of rpc/workout_start. */

@@ -6,7 +6,7 @@ import { useNav } from '../lib/nav'
 import { db } from '../lib/db'
 import { createRoutine, deleteRoutine, loadRoutineForEdit, regenerateRulesPlan, updateRoutine } from '../lib/routines'
 
-type Item = { exerciseId: string; name: string; targetSets: number }
+type Item = { exerciseId: string; name: string; targetSets: number; backupId?: string | null; backupName?: string | null }
 
 /** Create a routine (no id) or edit one: name, exercises in order, number of sets for each. */
 export default function RoutineForm({ id }: { id?: string }) {
@@ -15,6 +15,7 @@ export default function RoutineForm({ id }: { id?: string }) {
   const [items, setItems] = useState<Item[]>([])
   const [loaded, setLoaded] = useState(!id)
   const [picking, setPicking] = useState(false)
+  const [backupFor, setBackupFor] = useState<string | null>(null) // the exercise whose backup is being picked
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -46,7 +47,7 @@ export default function RoutineForm({ id }: { id?: string }) {
     if (items.length === 0) return setError('Add at least one exercise.')
     setBusy(true)
     try {
-      const list = items.map((it) => ({ exerciseId: it.exerciseId, targetSets: it.targetSets }))
+      const list = items.map((it) => ({ exerciseId: it.exerciseId, targetSets: it.targetSets, backupId: it.backupId ?? null }))
       const routineId = id ?? (await createRoutine(name, list))
       if (id) await updateRoutine(id, name, list)
       await db.plans.delete(routineId) // the saved plan on this phone is out of date
@@ -102,6 +103,21 @@ export default function RoutineForm({ id }: { id?: string }) {
                   <button className="danger" onClick={() => setItems((l) => l.filter((_, k) => k !== i))} aria-label="Remove">✕</button>
                 </div>
               </div>
+              <div className="routine-backup">
+                <span className="muted">Backup{it.backupName ? '' : ': none'}</span>
+                {it.backupName && <span className="routine-backup-name">{it.backupName}</span>}
+                <button className="link" onClick={() => setBackupFor(it.exerciseId)}>
+                  {it.backupName ? 'Change' : 'Choose'}
+                </button>
+                {it.backupName && (
+                  <button
+                    className="link danger"
+                    onClick={() => setItems((l) => l.map((x) => (x.exerciseId === it.exerciseId ? { ...x, backupId: null, backupName: null } : x)))}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           <button className="outline" onClick={() => setPicking(true)}>
@@ -112,6 +128,9 @@ export default function RoutineForm({ id }: { id?: string }) {
           <button className="primary" disabled={busy} onClick={save}>
             {busy ? 'Saving…' : 'Save routine'}
           </button>
+          <p className="muted note">
+            A backup is what you do instead when the machine is taken: the workout offers it with one tap, starting from what you did last time.
+          </p>
           <p className="muted note">
             Saving rebuilds the automatic plan for this routine. A plan Claude already wrote stays until you use it or ask Claude for a new one.
           </p>
@@ -130,6 +149,16 @@ export default function RoutineForm({ id }: { id?: string }) {
           onPick={(row) => {
             setPicking(false)
             setItems((l) => [...l, { exerciseId: row.id, name: row.name, targetSets: 3 }])
+          }}
+        />
+      )}
+      {backupFor && (
+        <ExercisePicker
+          taken={new Set(items.map((i) => i.exerciseId))}
+          onClose={() => setBackupFor(null)}
+          onPick={(row) => {
+            setItems((l) => l.map((x) => (x.exerciseId === backupFor ? { ...x, backupId: row.id, backupName: row.name } : x)))
+            setBackupFor(null)
           }}
         />
       )}
