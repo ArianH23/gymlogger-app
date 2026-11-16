@@ -31,6 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.wear.compose.foundation.ArcPaddingValues
+import androidx.wear.compose.foundation.CurvedDirection
+import androidx.wear.compose.foundation.CurvedLayout
+import androidx.wear.compose.foundation.CurvedModifier
+import androidx.wear.compose.foundation.padding
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Button
@@ -40,6 +46,8 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.PickerGroup
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TimeTextDefaults
+import androidx.wear.compose.material3.curvedText
 import androidx.wear.compose.material3.rememberPickerState
 import com.gymlogger.watch.data.PlanExercise
 import com.gymlogger.watch.data.Row
@@ -68,7 +76,11 @@ private fun mmss(ms: Long): String {
 
 private fun Row.label() = if (side == null) "Set $setNo" else "Set $setNo · $side"
 
-/** The top of the screen during a workout: the time of day, how long the workout has been going, and the heart rate when it is being recorded ("19:42 · 24:10 · ♥ 132"). */
+/**
+ * The edges of the screen during a workout, written along the curve so the round screen does not cut them off: at the
+ * top how long the workout has been going and the heart rate when it is being recorded ("24:10 ♥ 132"), at the bottom
+ * the time of day. Takes the whole screen; only the two arcs are drawn.
+ */
 @Composable
 fun WorkoutClock(startedAt: String, modifier: Modifier = Modifier) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -82,12 +94,20 @@ fun WorkoutClock(startedAt: String, modifier: Modifier = Modifier) {
     val seconds = ((now - started) / 1000).coerceAtLeast(0)
     val elapsed = if (seconds >= 3600) "${seconds / 3600}:${(seconds % 3600 / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
     else "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
-    val time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
     val bpm by com.gymlogger.watch.HeartRate.bpm.collectAsState()
-    LayoutRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(elapsed, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-        bpm?.let { Text("\u2665 $it", style = MaterialTheme.typography.labelSmall, color = Danger) }
+    val time = TimeTextDefaults.rememberTimeSource(TimeTextDefaults.timeFormat()).currentTime()
+    val quiet = TimeTextDefaults.timeTextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+    val going = TimeTextDefaults.timeTextStyle(color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+    val heart = TimeTextDefaults.timeTextStyle(color = Danger, fontSize = 13.sp)
+    val edge = modifier.fillMaxSize().padding(2.dp)
+    // Top: the two workout numbers. Kept short on purpose: a longer arc dips at its ends into the title below it.
+    CurvedLayout(edge) {
+        curvedText(elapsed, style = going)
+        bpm?.let { curvedText("\u2665 $it", CurvedModifier.padding(ArcPaddingValues(before = 8.dp)), style = heart) }
+    }
+    // Bottom: the time of day, under the buttons, where the screens have nothing.
+    CurvedLayout(edge, anchor = 90f, angularDirection = CurvedDirection.Angular.Reversed) {
+        curvedText(time, style = quiet)
     }
 }
 
@@ -269,7 +289,7 @@ fun EditorScreen(
     val plan = ex.planSet(row.setNo)?.targetText()
     val last = ex.lastText(row)
 
-    Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(ex.name, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 40.dp))
         LayoutRow(verticalAlignment = Alignment.CenterVertically) {
             StepArrow("‹", onPrev)
@@ -363,7 +383,7 @@ private val FEELINGS = listOf("Awful", "Rough", "Normal", "Good", "Great")
 @Composable
 fun FeelingScreen(onDone: (Int?) -> Unit) {
     val wheel = rememberPickerState(initialNumberOfOptions = FEELINGS.size, initiallySelectedIndex = 2, shouldRepeatOptions = false)
-    Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("How did it feel?", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         PickerGroup(selectedPickerState = wheel, autoCenter = false, modifier = Modifier.weight(1f).padding(vertical = 2.dp)) {
             PickerGroupItem(

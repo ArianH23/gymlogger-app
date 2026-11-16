@@ -10,11 +10,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -78,9 +75,9 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(vm.restEndsAt) { if (vm.restEndsAt == null && vm.screen is Screen.Rest) vm.back() }
                     Box(Modifier.fillMaxSize()) {
                         SignedInContent()
-                        // During a workout: the time, and how long it has been going, at the top of every workout screen.
+                        // During a workout: the time, how long it has been going and the heart rate, along the top edge of every workout screen.
                         vm.workout?.let { w ->
-                            if (vm.screen != Screen.Routines) WorkoutClock(w.startedAt, Modifier.align(Alignment.TopCenter).padding(top = 5.dp))
+                            if (vm.screen != Screen.Routines) WorkoutClock(w.startedAt)
                         }
                     }
                 }
