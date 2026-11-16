@@ -14,6 +14,7 @@ export type View =
   | { type: 'shape' } // your measurements against the target figure
   | { type: 'shapeTargets' }
   | { type: 'run'; id: string }
+  | { type: 'photos' } // progress photos: the same pose on two dates
 
 type Nav = {
   stack: View[]

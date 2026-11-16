@@ -145,6 +145,11 @@ export default function Body() {
             </button>
           )}
 
+          <button className="card list-item" onClick={() => push({ type: 'photos' })}>
+            <span className="routine-title">Progress photos</span>
+            <span className="muted">Front, side and back on two dates, side by side.</span>
+          </button>
+
           <MusclePeriods />
 
           <h2>Measurements</h2>
