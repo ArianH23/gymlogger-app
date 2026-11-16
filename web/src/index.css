@@ -359,6 +359,18 @@ details.group .two-cols { margin-bottom: 8px; }
 .mb-fill { display: block; height: 100%; border-radius: 5px; background: var(--you); transform-origin: left; animation: bar-grow 0.5s ease-out; }
 .mb-num { text-align: right; font-variant-numeric: tabular-nums; }
 .mb-num small { font-size: var(--t-12); }
+.balance h3 { margin: 14px 0 2px; font-size: var(--t-14); color: var(--muted); font-weight: 500; }
+.balance ul { list-style: none; margin: 0; padding: 0; }
+.balance li { padding: 7px 0 3px; font-size: var(--t-14); }
+.bal-ends { display: flex; justify-content: space-between; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.bal-ends small { font-size: var(--t-12); }
+.bal-track { position: relative; display: flex; gap: 2px; height: 10px; }
+.bal-a, .bal-b { display: block; height: 100%; min-width: 0; }
+.bal-a { background: var(--you); border-radius: 5px 0 0 5px; }
+.bal-b { background: var(--target); border-radius: 0 5px 5px 0; flex: 1; }
+.bal-a.only, .bal-b.only { border-radius: 5px; }
+.bal-mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; opacity: 0.85; }
+.balance .note { margin: 8px 0 0; }
 .period-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .period-nav strong { font-family: var(--font-display); font-weight: 600; }
 .period-nav .link { font-size: 24px; padding: 4px 14px; }

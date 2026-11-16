@@ -30,8 +30,11 @@ export const muscleLabel = (key: string) => MUSCLES.find((m) => m.key === key)?.
 /** One muscle's weighted sets (primary 1, secondary 0.5 per working set) and its share of the total. */
 export type MuscleRow = { muscle: string; label: string; sets: number; share: number }
 
+/** One comparison of two sides of the body (push against pull, say): the weighted sets on each side. From weekly_balance / monthly_balance. */
+export type BalanceRow = { pair: string; label: string; aLabel: string; bLabel: string; aSets: number; bSets: number; aShare: number }
+
 export type PeriodKind = 'week' | 'month'
-export type MusclePeriod = { start: string; rows: MuscleRow[]; total: number }
+export type MusclePeriod = { start: string; rows: MuscleRow[]; total: number; balance: BalanceRow[] }
 
 const bySets = (a: MuscleRow, b: MuscleRow) => b.sets - a.sets || a.label.localeCompare(b.label)
 
@@ -51,15 +54,24 @@ export async function loadMusclePeriods(kind: PeriodKind): Promise<MusclePeriod[
   const from = new Date()
   if (kind === 'week') from.setDate(from.getDate() - 26 * 7)
   else from.setMonth(from.getMonth() - 24)
-  const { data, error } = await supabase.from(view).select(`${col}, muscle, label, sets, share`).gte(col, isoDay(from)).order(col, { ascending: false })
+  const balanceView = kind === 'week' ? 'weekly_balance' : 'monthly_balance'
+  const [{ data, error }, balance] = await Promise.all([
+    supabase.from(view).select(`${col}, muscle, label, sets, share`).gte(col, isoDay(from)).order(col, { ascending: false }),
+    supabase.from(balanceView).select(`${col}, pair, label, ord, a_label, b_label, a_sets, b_sets, a_share`).gte(col, isoDay(from)).order('ord'),
+  ])
   if (error) throw error
+  if (balance.error) throw balance.error
   const periods = new Map<string, MusclePeriod>()
   for (const r of (data ?? []) as unknown as Record<string, string | number>[]) {
     const start = r[col] as string
-    const p = periods.get(start) ?? { start, rows: [], total: 0 }
+    const p = periods.get(start) ?? { start, rows: [], total: 0, balance: [] }
     p.rows.push({ muscle: r.muscle as string, label: r.label as string, sets: Number(r.sets), share: Number(r.share) })
     p.total += Number(r.sets)
     periods.set(start, p)
+  }
+  for (const r of (balance.data ?? []) as unknown as Record<string, string | number>[]) {
+    const b: BalanceRow = { pair: r.pair as string, label: r.label as string, aLabel: r.a_label as string, bLabel: r.b_label as string, aSets: Number(r.a_sets), bSets: Number(r.b_sets), aShare: Number(r.a_share) }
+    periods.get(r[col] as string)?.balance.push(b)
   }
   return [...periods.values()].map((p) => ({ ...p, rows: p.rows.sort(bySets) })).sort((a, b) => b.start.localeCompare(a.start))
 }

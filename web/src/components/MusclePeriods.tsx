@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChartSkeleton } from './Skeleton'
+import BalanceBars from './BalanceBars'
 import MuscleBars from './MuscleBars'
 import MuscleFigure from './MuscleFigure'
 import { loadMusclePeriods, type MusclePeriod, type PeriodKind } from '../lib/muscles'
@@ -73,6 +74,7 @@ export default function MusclePeriods() {
             {num(period.total)} weighted sets: a working set counts 1 for each main muscle and half for each helping muscle. The number after each bar is
             its share of the total.
           </p>
+          <BalanceBars rows={period.balance} />
         </div>
       )}
     </>
