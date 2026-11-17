@@ -24,6 +24,7 @@ export default function RunPage({ id }: { id: string }) {
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
   const [asking, setAsking] = useState(false)
+  const [paceView, setPaceView] = useState<'km' | 'climb'>('km') // the pace card: each kilometre, or pace against the climb
 
   useEffect(() => {
     loadRun(id)
@@ -179,29 +180,45 @@ export default function RunPage({ id }: { id: string }) {
             <RouteView track={data.track} splits={data.splits} />
           </div>
 
-          {data.splits.length > 0 && (
+          {(data.splits.length > 0 || pacedAltitude) && (
             <>
-              <h2>Each kilometre</h2>
+              <h2>Pace</h2>
               <div className="card">
-                <SplitList splits={data.splits} />
-                <p className="muted note">
-                  {evenPace
-                    ? 'The GPS did not work on this run, so the distance is the one the watch reported and the pace is the average for every kilometre.'
-                    : 'Pace per kilometre from moving time. A longer bar is a faster kilometre.'}
-                </p>
+                {data.splits.length > 0 && pacedAltitude && (
+                  <div className="segmented" role="tablist">
+                    {(
+                      [
+                        ['km', 'Each kilometre'],
+                        ['climb', 'Pace and climb'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <button key={key} role="tab" aria-selected={paceView === key} className={paceView === key ? 'on' : ''} onClick={() => setPaceView(key)}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {pacedAltitude && (paceView === 'climb' || data.splits.length === 0) ? (
+                  <PaceClimbChart track={data.track} />
+                ) : (
+                  <>
+                    <SplitList splits={data.splits} />
+                    <p className="muted note">
+                      {evenPace
+                        ? 'The GPS did not work on this run, so the distance is the one the watch reported and the pace is the average for every kilometre.'
+                        : 'Pace per kilometre from moving time. A longer bar is a faster kilometre.'}
+                    </p>
+                  </>
+                )}
               </div>
             </>
           )}
 
-          {altitude.length > 1 && (
+          {altitude.length > 1 && !pacedAltitude && (
             <>
-              <h2>{pacedAltitude ? 'Pace and climb' : 'Altitude'}</h2>
+              <h2>Altitude</h2>
               <div className="card">
-                {pacedAltitude ? (
-                  <PaceClimbChart track={data.track} />
-                ) : (
-                  <ProfileChart points={altitude} color="var(--chart)" label="Altitude" unit="m" />
-                )}
+                <ProfileChart points={altitude} color="var(--chart)" label="Altitude" unit="m" />
               </div>
             </>
           )}

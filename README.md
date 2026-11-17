@@ -115,7 +115,8 @@ shows the distance per week, your bests (fastest 5 km, fastest kilometre, longes
 shows distance, moving time and pace, the route on a real map, the pace of each kilometre, and altitude and heart rate along
 the way when the file has them. Runs are on the calendar in blue and count for the week streak and the rest days.
 
-**Pace and climb.** When the run has altitude, the Altitude card becomes two charts one above the other with the same distance axis:
+**Pace and climb.** When the run has altitude, the Pace card has two tabs, **Each kilometre** and **Pace and climb** (which replaces the
+separate Altitude card). The second tab is two charts one above the other with the same distance axis:
 altitude on top, pace below (faster is higher), so a slow stretch lines up with the climb it was on. Touch the charts to read one spot
 (distance, pace, altitude, gradient), and under them is your average pace uphill, on the flat and downhill (slopes are steeper than
 2 %). It is worked out on the phone from the stored track in 100 m pieces (`lib/paceClimb.ts`), for display only; the run's official
