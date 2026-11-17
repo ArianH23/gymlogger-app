@@ -135,7 +135,10 @@ button.link { background: none; border: 0; color: var(--muted); font-size: var(-
 
 .exercise h2 { margin: 0 0 12px; font-size: 20px; }
 .set-group { margin-bottom: 14px; }
+.set-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
 .set-target { font-size: var(--t-14); color: var(--muted); margin-bottom: 6px; }
+.set-head .set-target { margin-bottom: 0; }
+.set-remove { padding: 0 0 0 8px; font-size: var(--t-14); flex-shrink: 0; }
 .set-target .note { margin-top: 2px; }
 
 .set-row { display: grid; grid-template-columns: 28px 62px 1fr 1fr 56px; gap: 8px; align-items: center; margin-bottom: 8px; }

@@ -12,6 +12,7 @@ import { loadExerciseMuscles, type ExerciseMuscle } from '../lib/muscles'
 import { createRoutine, suggestRoutineName } from '../lib/routines'
 import type { ExerciseRow } from '../lib/exerciseList'
 import { num, targetText } from '../lib/format'
+import { removeSetRow, visibleSetNos } from '../lib/setRows'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -140,6 +141,13 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     await touchLive(w.id)
   }
 
+  /** Takes an empty set off the list (the same as on the watch). A set with something logged has to be undone first. */
+  async function removeSet(w: Workout, ex: PlanExercise, setNo: number) {
+    const after = removeSetRow(w, ex.exerciseId, ex.sets.map((s) => s.setNo), setNo)
+    await db.workouts.update(w.id, { extraSets: after.extraSets, removedSets: after.removedSets })
+    await touchLive(w.id)
+  }
+
   /** Adds an exercise that isn't in the plan. Sets start from what you did last time, when that is known. */
   async function addExercise(row: ExerciseRow) {
     setPicking(false)
@@ -252,11 +260,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
         )}
 
         {workout.plan.map((ex) => {
-          const extra = workout.extraSets[ex.exerciseId] ?? 0
-          const planned = ex.sets.map((s) => s.setNo)
-          const next = Math.max(0, ...planned) + 1
-          const removed = new Set(workout.removedSets?.[ex.exerciseId] ?? []) // taken off the list on another device
-          const setNos = [...planned, ...Array.from({ length: extra }, (_, i) => next + i)].filter((n) => !removed.has(n))
+          const setNos = visibleSetNos(workout, ex.exerciseId, ex.sets.map((s) => s.setNo)) // without the ones taken off the list (here or on the watch)
           const sides: Side[] = ex.unilateral ? ['L', 'R'] : [null]
           return (
             <section className="card exercise" key={ex.exerciseId}>
@@ -268,13 +272,21 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                 const planSet = ex.sets.find((s) => s.setNo === setNo)
                 return (
                   <div className="set-group" key={setNo}>
-                    {planSet && (
-                      <div className="set-target">
-                        Set {setNo} · plan {targetText(planSet, ex) || 'no target'}
-                        {planSet.note && <div className="muted note">{planSet.note}</div>}
-                      </div>
-                    )}
-                    {!planSet && <div className="set-target">Set {setNo} · extra</div>}
+                    <div className="set-head">
+                      {planSet ? (
+                        <div className="set-target">
+                          Set {setNo} · plan {targetText(planSet, ex) || 'no target'}
+                          {planSet.note && <div className="muted note">{planSet.note}</div>}
+                        </div>
+                      ) : (
+                        <div className="set-target">Set {setNo} · extra</div>
+                      )}
+                      {!logged.some((s) => s.exerciseId === ex.exerciseId && s.setNo === setNo) && (
+                        <button className="link danger set-remove" onClick={() => removeSet(workout, ex, setNo)} aria-label={`Remove set ${setNo}`}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
                     {sides.map((side) => {
                       const key = rowKey(ex.exerciseId, setNo, side)
                       const draft = drafts[key] ?? defaultDraft(ex, planSet)
