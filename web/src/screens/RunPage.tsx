@@ -4,6 +4,8 @@ import { PageSkeleton } from '../components/Skeleton'
 import ConfirmDialog from '../components/ConfirmDialog'
 import RouteView from '../components/RouteView'
 import ProfileChart from '../components/ProfileChart'
+import PaceClimbChart from '../components/PaceClimbChart'
+import { pacePieces } from '../lib/paceClimb'
 import SplitList from '../components/SplitList'
 import { useNav } from '../lib/nav'
 import { formatDate } from '../lib/format'
@@ -34,6 +36,11 @@ export default function RunPage({ id }: { id: string }) {
 
   const run = data?.run
   const altitude = useMemo(() => (data?.track ?? []).filter((p) => p.alt !== null).map((p) => ({ x: p.d / 1000, y: p.alt as number })), [data])
+  // with altitude and times along the route, altitude is shown together with the pace; otherwise on its own
+  const pacedAltitude = useMemo(() => {
+    const p = pacePieces(data?.track ?? [])
+    return p.length >= 5 && p.filter((q) => q.alt !== null).length >= 5
+  }, [data])
   const heart = useMemo(() => (data?.track ?? []).filter((p) => p.hr !== null).map((p) => ({ x: p.d / 1000, y: p.hr as number })), [data])
   // When the GPS did not work the database assumes a steady pace, so every full kilometre takes the same time.
   const fullSplits = (data?.splits ?? []).filter((s) => s.distanceM >= 999.5)
@@ -188,9 +195,13 @@ export default function RunPage({ id }: { id: string }) {
 
           {altitude.length > 1 && (
             <>
-              <h2>Altitude</h2>
+              <h2>{pacedAltitude ? 'Pace and climb' : 'Altitude'}</h2>
               <div className="card">
-                <ProfileChart points={altitude} color="var(--chart)" label="Altitude" unit="m" />
+                {pacedAltitude ? (
+                  <PaceClimbChart track={data.track} />
+                ) : (
+                  <ProfileChart points={altitude} color="var(--chart)" label="Altitude" unit="m" />
+                )}
               </div>
             </>
           )}

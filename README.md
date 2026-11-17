@@ -115,6 +115,12 @@ shows the distance per week, your bests (fastest 5 km, fastest kilometre, longes
 shows distance, moving time and pace, the route on a real map, the pace of each kilometre, and altitude and heart rate along
 the way when the file has them. Runs are on the calendar in blue and count for the week streak and the rest days.
 
+**Pace and climb.** When the run has altitude, the Altitude card becomes two charts one above the other with the same distance axis:
+altitude on top, pace below (faster is higher), so a slow stretch lines up with the climb it was on. Touch the charts to read one spot
+(distance, pace, altitude, gradient), and under them is your average pace uphill, on the flat and downhill (slopes are steeper than
+2 %). It is worked out on the phone from the stored track in 100 m pieces (`lib/paceClimb.ts`), for display only; the run's official
+numbers still come from the database. GPS altitude is rough, so short bumps mean little.
+
 **The map** is Leaflet with OpenStreetMap tiles (`RunMap.tsx`, loaded only when a run with a route is opened), shown in the app's
 dark colours. The route is cut at every kilometre and each kilometre is coloured by its pace, slow orange through gold to fast
 jade, with a number at each kilometre mark and a legend (`lib/routePace.ts`; **Plain colour** turns it off). Your GPS points never leave the app; the map server sees which tiles are requested, which is roughly the area of

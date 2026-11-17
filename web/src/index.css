@@ -460,6 +460,11 @@ button.outline.quiet { margin-top: 6px; border-style: dashed; background: transp
 .run-map.leaflet-container .leaflet-control-attribution a { color: var(--text); }
 .run-map.leaflet-container .leaflet-bar a { background: var(--surface); color: var(--text); border-color: var(--line); }
 .map-toggle { margin-top: 10px; }
+.pc-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; font-size: var(--t-12); color: var(--muted); }
+.pc-legend .swatch { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.pc-readout { min-height: 22px; margin-bottom: 4px; font-size: var(--t-14); font-variant-numeric: tabular-nums; }
+.pc-groups { margin-top: 8px; }
+.pc-groups small { font-size: var(--t-12); }
 .map-toggles { display: flex; gap: 22px; }
 .pace-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-top: 10px; font-size: var(--t-14); font-variant-numeric: tabular-nums; }
 .pace-bar { flex: 1; min-width: 80px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #d95926, #c8a45c, #45c08a); }
