@@ -124,3 +124,33 @@ export async function deleteRoutine(id: string) {
 export async function regenerateRulesPlan(routineId: string) {
   await supabase.rpc('generate_plan', { p_routine_id: routineId }) // best effort: the routine is saved either way
 }
+
+export type BackupSuggestion = {
+  exerciseId: string
+  name: string
+  equipment: string | null
+  similarity: number // 0.5 to 1: how closely the muscles match
+  sharedMuscles: string[] // the primary muscles both work
+  timesDone: number
+}
+
+/** Exercises that could stand in for this one, best first. `exclude`: the exercises already in the routine. Needs signal. */
+export async function suggestBackups(exerciseId: string, exclude: string[], limit = 4): Promise<BackupSuggestion[]> {
+  const { data, error } = await supabase.rpc('suggest_backups', { p_exercise_id: exerciseId, p_exclude: exclude, p_limit: limit })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    exerciseId: r.exercise_id as string,
+    name: r.name as string,
+    equipment: (r.equipment as string | null) ?? null,
+    similarity: Number(r.similarity),
+    sharedMuscles: (r.shared_muscles as string[] | null) ?? [],
+    timesDone: Number(r.times_done),
+  }))
+}
+
+/** One line saying why this is suggested: the muscles it shares, its equipment, and whether you have done it. */
+export function suggestionWhy(s: BackupSuggestion): string {
+  const parts = [s.sharedMuscles.join(', ').toLowerCase(), s.equipment && s.equipment !== 'other' ? s.equipment : null]
+  parts.push(s.timesDone > 0 ? `done ${s.timesDone} ${s.timesDone === 1 ? 'time' : 'times'}` : 'not done yet')
+  return parts.filter(Boolean).join(' · ')
+}

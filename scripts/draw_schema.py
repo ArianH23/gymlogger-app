@@ -93,6 +93,7 @@ FUNCS = [
     ("muscle_defs() / exercise_muscle_defaults()", "the 16 muscles, and the standard muscle tags by exercise name"),
     ("muscle_balance_defs()", "the four balance comparisons and the muscles on each side"),
     ("routine_backups(routine) / backup_exercise_plan(…)", "the backup exercises of a routine, ready to swap in"),
+    ("suggest_backups(exercise, exclude, limit)", "exercises that could stand in for one, best match first"),
     ("export_hevy_csv(only_app)", "your workouts as a CSV file Hevy can import"),
     ("submit_run(json)", "saves a run from its points: distance, moving time, splits, elevation"),
     ("submit_session_hr(session, samples)", "saves the heart rate the watch recorded during a session"),

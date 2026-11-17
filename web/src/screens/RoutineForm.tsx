@@ -4,7 +4,16 @@ import { Page } from '../components/Page'
 import ExercisePicker from '../components/ExercisePicker'
 import { useNav } from '../lib/nav'
 import { db } from '../lib/db'
-import { createRoutine, deleteRoutine, loadRoutineForEdit, regenerateRulesPlan, updateRoutine } from '../lib/routines'
+import {
+  createRoutine,
+  deleteRoutine,
+  loadRoutineForEdit,
+  regenerateRulesPlan,
+  suggestBackups,
+  suggestionWhy,
+  updateRoutine,
+  type BackupSuggestion,
+} from '../lib/routines'
 
 type Item = { exerciseId: string; name: string; targetSets: number; backupId?: string | null; backupName?: string | null }
 
@@ -18,6 +27,10 @@ export default function RoutineForm({ id }: { id?: string }) {
   const [backupFor, setBackupFor] = useState<string | null>(null) // the exercise whose backup is being picked
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // suggested backups: the list shown under one exercise, and the note after "Suggest for all"
+  const [suggesting, setSuggesting] = useState<{ exerciseId: string; list: BackupSuggestion[] | null; error: string | null } | null>(null)
+  const [fillNote, setFillNote] = useState<string | null>(null)
+  const [filling, setFilling] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -40,6 +53,50 @@ export default function RoutineForm({ id }: { id?: string }) {
     })
   const setSets = (i: number, by: number) =>
     setItems((list) => list.map((it, k) => (k === i ? { ...it, targetSets: Math.min(10, Math.max(1, it.targetSets + by)) } : it)))
+
+  const setBackup = (exerciseId: string, backupId: string | null, backupName: string | null) => {
+    setItems((l) => l.map((x) => (x.exerciseId === exerciseId ? { ...x, backupId, backupName } : x)))
+    setSuggesting(null)
+  }
+
+  /** Shows the best matches for one exercise under it. Nothing is chosen until you tap Use. */
+  async function suggest(exerciseId: string) {
+    if (suggesting?.exerciseId === exerciseId) return setSuggesting(null) // a second tap closes it
+    setSuggesting({ exerciseId, list: null, error: null })
+    try {
+      const list = await suggestBackups(exerciseId, items.map((x) => x.exerciseId))
+      setSuggesting((s) => (s?.exerciseId === exerciseId ? { exerciseId, list, error: null } : s))
+    } catch {
+      setSuggesting((s) => (s?.exerciseId === exerciseId ? { exerciseId, list: null, error: 'No signal: suggestions need a connection. You can still choose one yourself.' } : s))
+    }
+  }
+
+  /** Gives every exercise without a backup its best match, each backup used once. Change or clear any of them before saving. */
+  async function suggestAll() {
+    setFilling(true)
+    setFillNote(null)
+    setSuggesting(null)
+    try {
+      const used = new Set([...items.map((x) => x.exerciseId), ...items.map((x) => x.backupId).filter((x): x is string => !!x)])
+      const chosen = new Map<string, BackupSuggestion>()
+      for (const it of items) {
+        if (it.backupId) continue
+        const best = (await suggestBackups(it.exerciseId, [...used], 1))[0]
+        if (best) {
+          chosen.set(it.exerciseId, best)
+          used.add(best.exerciseId)
+        }
+      }
+      setItems((l) => l.map((x) => (chosen.has(x.exerciseId) ? { ...x, backupId: chosen.get(x.exerciseId)!.exerciseId, backupName: chosen.get(x.exerciseId)!.name } : x)))
+      const missing = items.filter((x) => !x.backupId && !chosen.has(x.exerciseId)).length
+      setFillNote(
+        `${chosen.size} ${chosen.size === 1 ? 'backup' : 'backups'} suggested${missing ? `, ${missing} without a good match` : ''}. Nothing is saved until you save the routine.`,
+      )
+    } catch {
+      setFillNote('No signal: suggestions need a connection.')
+    }
+    setFilling(false)
+  }
 
   async function save() {
     setError(null)
@@ -106,23 +163,54 @@ export default function RoutineForm({ id }: { id?: string }) {
               <div className="routine-backup">
                 <span className="muted">Backup{it.backupName ? '' : ': none'}</span>
                 {it.backupName && <span className="routine-backup-name">{it.backupName}</span>}
+                {!it.backupName && (
+                  <button className="link" onClick={() => suggest(it.exerciseId)} aria-expanded={suggesting?.exerciseId === it.exerciseId}>
+                    Suggest
+                  </button>
+                )}
                 <button className="link" onClick={() => setBackupFor(it.exerciseId)}>
                   {it.backupName ? 'Change' : 'Choose'}
                 </button>
                 {it.backupName && (
-                  <button
-                    className="link danger"
-                    onClick={() => setItems((l) => l.map((x) => (x.exerciseId === it.exerciseId ? { ...x, backupId: null, backupName: null } : x)))}
-                  >
+                  <button className="link danger" onClick={() => setBackup(it.exerciseId, null, null)}>
                     Clear
                   </button>
                 )}
               </div>
+              {suggesting?.exerciseId === it.exerciseId && (
+                <div className="suggestions" aria-live="polite">
+                  {suggesting.list === null && !suggesting.error && <p className="muted note">Looking for exercises that work the same muscles…</p>}
+                  {suggesting.error && <p className="muted note">{suggesting.error}</p>}
+                  {suggesting.list?.length === 0 && (
+                    <p className="muted note">Nothing close enough was found (an exercise needs muscle tags to be matched). Use Choose to pick one yourself.</p>
+                  )}
+                  {suggesting.list?.map((s) => (
+                    <div className="suggestion" key={s.exerciseId}>
+                      <div className="suggestion-text">
+                        <div>{s.name}</div>
+                        <small className="muted">{suggestionWhy(s)}</small>
+                      </div>
+                      <button
+                        className="link"
+                        onClick={() => setBackup(it.exerciseId, s.exerciseId, s.name)}
+                      >
+                        Use
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           <button className="outline" onClick={() => setPicking(true)}>
             + Add exercise
           </button>
+          {items.some((it) => !it.backupId) && (
+            <button className="outline" disabled={filling} onClick={suggestAll}>
+              {filling ? 'Looking…' : 'Suggest backups for the rest'}
+            </button>
+          )}
+          {fillNote && <p className="muted note">{fillNote}</p>}
 
           {error && <p className="error">{error}</p>}
           <button className="primary" disabled={busy} onClick={save}>
@@ -157,7 +245,7 @@ export default function RoutineForm({ id }: { id?: string }) {
           taken={new Set(items.map((i) => i.exerciseId))}
           onClose={() => setBackupFor(null)}
           onPick={(row) => {
-            setItems((l) => l.map((x) => (x.exerciseId === backupFor ? { ...x, backupId: row.id, backupName: row.name } : x)))
+            setBackup(backupFor, row.id, row.name)
             setBackupFor(null)
           }}
         />
