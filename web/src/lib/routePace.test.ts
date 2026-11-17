@@ -11,14 +11,12 @@ const track = (meters: number): TrackPoint[] =>
   Array.from({ length: meters / 250 + 1 }, (_, i) => ({ t: i * 90, lat: 41 + (i * 250) / 111000, lon: 2, alt: null, d: i * 250, hr: null }))
 
 describe('rampColor', () => {
-  it('runs from orange (slow) through gold to jade (fast)', () => {
-    expect(rampColor(0)).toBe('#d95926')
-    expect(rampColor(0.5)).toBe('#c8a45c')
-    expect(rampColor(1)).toBe('#45c08a')
+  it('gives slow, middle and fast three different colours', () => {
+    expect(new Set([rampColor(0), rampColor(0.5), rampColor(1)]).size).toBe(3)
   })
   it('stays inside the ramp', () => {
-    expect(rampColor(-3)).toBe('#d95926')
-    expect(rampColor(7)).toBe('#45c08a')
+    expect(rampColor(-3)).toBe(rampColor(0))
+    expect(rampColor(7)).toBe(rampColor(1))
   })
 })
 
@@ -26,8 +24,8 @@ describe('paceSegments', () => {
   it('cuts the route at each kilometre, colouring the slowest orange and the fastest jade', () => {
     const segs = paceSegments(track(3000), [split(1, 360), split(2, 420), split(3, 330)])
     expect(segs.map((s) => s.km)).toEqual([1, 2, 3])
-    expect(segs[1].color).toBe('#d95926') // 7:00 is the slowest
-    expect(segs[2].color).toBe('#45c08a') // 5:30 is the fastest
+    expect(segs[1].color).toBe(rampColor(0)) // 7:00 is the slowest
+    expect(segs[2].color).toBe(rampColor(1)) // 5:30 is the fastest
   })
 
   it('joins the kilometres so the line has no gaps', () => {

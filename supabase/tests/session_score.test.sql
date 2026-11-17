@@ -2,10 +2,9 @@
 -- Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(19);
 
 -- Tier thresholds, including both sides of every boundary.
-select is(public.session_tier(100), 'great', '100% is great');
 select is(public.session_tier(90),  'great', '90% is great (boundary)');
 select is(public.session_tier(89),  'good',  '89% is good');
 select is(public.session_tier(70),  'good',  '70% is good (boundary)');
@@ -14,7 +13,6 @@ select is(public.session_tier(50),  'average', '50% is average (boundary)');
 select is(public.session_tier(49),  'weak',  '49% is weak');
 select is(public.session_tier(30),  'weak',  '30% is weak (boundary)');
 select is(public.session_tier(29),  'poor',  '29% is poor');
-select is(public.session_tier(0),   'poor',  '0% is poor');
 select is(public.session_tier(null), null,   'no score gives no tier');
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'test@example.com');

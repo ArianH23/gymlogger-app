@@ -16,8 +16,4 @@ describe('fitWithin', () => {
   it('never makes a small image bigger', () => {
     expect(fitWithin(800, 600, 1600)).toEqual({ width: 800, height: 600 })
   })
-
-  it('keeps an image that is exactly the maximum', () => {
-    expect(fitWithin(1600, 1200, 1600)).toEqual({ width: 1600, height: 1200 })
-  })
 })

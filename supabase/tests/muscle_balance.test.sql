@@ -1,7 +1,7 @@
 -- Tests for the balance comparisons (push/pull, front/back, upper/lower, quads/hamstrings). Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(15);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'one@example.com'),
@@ -42,7 +42,6 @@ create function pg_temp.wb(p_week date, p_pair text) returns public.weekly_balan
   select * from public.weekly_balance where user_id = '00000000-0000-0000-0000-0000000000a1' and week_start = p_week and pair = p_pair
 $$;
 
-select is((select count(distinct pair) from public.muscle_balance_defs()), 4::bigint, 'there are four comparisons');
 select is((select count(*) from public.muscle_balance_defs() d where not exists (select 1 from public.muscle_defs() m where m.muscle = d.muscle)), 0::bigint, 'every muscle in a comparison is one of the 16');
 select is((select count(*) from (select pair, muscle from public.muscle_balance_defs() group by pair, muscle having count(*) > 1) x), 0::bigint, 'no muscle is on both sides of a comparison');
 

@@ -105,7 +105,11 @@ select public.submit_run(jsonb_build_object('source', 'google_health', 'external
 select is((select week_streak::text || ' ' || sessions_this_week::text || ' ' || rest_days::text from public.training_streak where user_id = '00000000-0000-0000-0000-0000000000a2'),
           '1 1 ' || ((now() at time zone 'Europe/Berlin')::date - ((now() - interval '1 hour') at time zone 'Europe/Berlin')::date)::text,
           'a run this week alone gives a week streak of 1 and resets the rest days');
-select is((select count(*) from pg_policies where tablename in ('runs', 'run_splits')), 2::bigint, 'row level security policies exist on runs and run_splits');
+-- Another user cannot see these rows (row level security).
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.runs where user_id = '00000000-0000-0000-0000-0000000000a1') + (select count(*) from public.run_splits where user_id = '00000000-0000-0000-0000-0000000000a1'), 0::bigint, 'another user sees none of your runs or their splits');
+reset role;
 
 select * from finish();
 rollback;

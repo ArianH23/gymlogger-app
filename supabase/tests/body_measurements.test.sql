@@ -63,7 +63,11 @@ select is((select earlier_value from public.body_latest where user_id = '0000000
 select is((select calories_kcal from public.weekly_overview where user_id = '00000000-0000-0000-0000-0000000000a1' and week_start = '2026-01-05'), 2500::numeric, 'weekly average calories = (2400 + 2600) / 2');
 select is((select steps from public.weekly_overview where user_id = '00000000-0000-0000-0000-0000000000a1' and week_start = '2026-01-05'), 9000::numeric, 'weekly average steps = (10000 + 8000) / 2');
 
-select is((select count(*) from pg_policies where tablename = 'body_profile'), 1::bigint, 'row level security policy exists on body_profile');
+-- Another user cannot see these rows (row level security).
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.body_profile where user_id = '00000000-0000-0000-0000-0000000000a1'), 0::bigint, 'another user sees none of your profile');
+reset role;
 
 select * from finish();
 rollback;

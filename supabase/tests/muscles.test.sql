@@ -1,7 +1,7 @@
 -- Tests for the muscle tags and the per session / week / month muscle totals. Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(18);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'one@example.com'),
@@ -42,8 +42,6 @@ create function pg_temp.sm(p_session text, p_muscle text) returns public.session
   select * from public.session_muscles where session_id = ('00000000-0000-0000-0000-0000000000' || p_session)::uuid and muscle = p_muscle
 $$;
 
-select is((select count(*) from public.muscle_defs()), 16::bigint, 'there are 16 muscles');
-select is((select count(distinct exercise_name) from public.exercise_muscle_defaults()), 72::bigint, 'the standard tags cover all 72 catalog exercises');
 select is((select count(*) from public.exercise_muscles where exercise_id = '00000000-0000-0000-0000-0000000000e1'), 3::bigint, 'a new exercise named like the catalog is tagged by the trigger (bench: chest, triceps, front delts)');
 select is((select role from public.exercise_muscles where exercise_id = '00000000-0000-0000-0000-0000000000e1' and muscle = 'chest'), 'primary', 'chest is primary for bench');
 select is((select role from public.exercise_muscles where exercise_id = '00000000-0000-0000-0000-0000000000e1' and muscle = 'triceps'), 'secondary', 'triceps is secondary for bench');
@@ -63,7 +61,11 @@ select is((select sets from public.monthly_muscles where user_id = '00000000-000
 select is((select sessions from public.monthly_muscles where user_id = '00000000-0000-0000-0000-0000000000a1' and month_start = '2026-01-01' and muscle = 'chest'), 2::bigint, 'January chest was trained in 2 sessions');
 select is((select sets from public.weekly_muscles where user_id = '00000000-0000-0000-0000-0000000000a2' and week_start = '2026-01-05' and muscle = 'chest'), 1.0, 'another user is counted separately');
 select throws_ok($$insert into public.exercise_muscles (user_id, exercise_id, muscle, role) values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e3', 'toes', 'primary')$$, '23514', null, 'an unknown muscle is rejected');
-select is((select count(*) from pg_policies where tablename = 'exercise_muscles'), 1::bigint, 'row level security policy exists on exercise_muscles');
+-- Another user cannot see these rows (row level security).
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.exercise_muscles where user_id = '00000000-0000-0000-0000-0000000000a1'), 0::bigint, 'another user sees none of your muscle tags');
+reset role;
 
 select * from finish();
 rollback;

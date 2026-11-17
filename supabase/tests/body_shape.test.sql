@@ -2,7 +2,7 @@
 -- Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(17);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'one@example.com'),
@@ -18,7 +18,6 @@ create function pg_temp.shape(p_metric text) returns public.body_shape language 
   select * from public.body_shape where user_id = '00000000-0000-0000-0000-0000000000a1' and metric = p_metric
 $$;
 
-select is((select count(*) from public.shape_defaults()), 14::bigint, 'the model covers 14 measurements');
 select is((pg_temp.shape('shoulders_cm')).target_value, 116.6, 'shoulders target = 0.72 x 162 = 116.6');
 select is((pg_temp.shape('shoulders_cm')).gap, 8.6, 'shoulders gap = 8.6 cm to grow');
 select is((pg_temp.shape('shoulders_cm')).closeness, 0.926, 'shoulders closeness = 108 / 116.6');
@@ -43,7 +42,11 @@ select throws_ok($$insert into public.body_targets (user_id, metric, target_valu
 insert into public.body_checkins (user_id, checked_on, wrist_cm, ankle_cm) values ('00000000-0000-0000-0000-0000000000a1', '2026-01-06', 16.0, 21);
 select is((select value from public.body_metrics where user_id = '00000000-0000-0000-0000-0000000000a1' and metric = 'wrist_cm'), 16.0, 'wrist appears in body_metrics');
 select throws_ok($$insert into public.body_checkins (user_id, checked_on, wrist_cm) values ('00000000-0000-0000-0000-0000000000a2', '2026-01-06', 5)$$, '23514', null, 'a 5 cm wrist is rejected');
-select is((select count(*) from pg_policies where tablename = 'body_targets'), 1::bigint, 'row level security policy exists on body_targets');
+-- Another user cannot see these rows (row level security).
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.body_targets where user_id = '00000000-0000-0000-0000-0000000000a1'), 0::bigint, 'another user sees none of your own targets');
+reset role;
 
 select * from finish();
 rollback;

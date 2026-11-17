@@ -53,7 +53,12 @@ select ok(not has_function_privilege('anon', 'public.create_watch_pairing()', 'e
 select ok(has_function_privilege('service_role', 'public.claim_watch_pairing(text)', 'execute'), 'the service role can claim');
 select set_config('request.jwt.claims', '', true);
 select throws_ok($$select public.create_watch_pairing()$$, 'P0001', 'sign in first', 'making a code needs a signed-in user');
-select is((select count(*) from pg_policies where tablename = 'watch_pairings'), 1::bigint, 'row level security policy exists');
+-- Another user cannot see these rows (row level security).
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a2', 'other@example.com');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.watch_pairings where user_id = '00000000-0000-0000-0000-0000000000a1'), 0::bigint, 'another user sees none of your pairing codes');
+reset role;
 
 select * from finish();
 rollback;

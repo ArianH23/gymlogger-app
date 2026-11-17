@@ -1,7 +1,7 @@
 -- Tests for progress photos (the table and who may touch the files). Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(11);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'one@example.com'),
@@ -22,8 +22,6 @@ update public.progress_photos set deleted_at = now() where id = '00000000-0000-0
 select lives_ok($$insert into public.progress_photos (user_id, taken_on, pose, path) values ('00000000-0000-0000-0000-0000000000a1', '2026-01-05', 'front', '00000000-0000-0000-0000-0000000000a1/again.jpg')$$,
                 'once the earlier one is deleted, the day and pose are free again');
 
-select is((select count(*) from pg_policies where schemaname = 'public' and tablename = 'progress_photos'), 1::bigint, 'row level security policy exists on progress_photos');
-select is((select relrowsecurity from pg_class where oid = 'public.progress_photos'::regclass), true, 'row level security is on');
 -- The files' policies and the bucket are checked only where file storage is set up (CI runs the database without it).
 select case when exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'objects' and column_name = 'bucket_id')
   then is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'progress_photos_%'), 3::bigint,

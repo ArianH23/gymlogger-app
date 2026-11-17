@@ -63,7 +63,12 @@ select throws_ok($$insert into public.body_checkins (user_id, checked_on, bodywe
                  '23514', null, 'an impossible bodyweight (8 kg) is rejected');
 update public.body_checkins set deleted_at = now() where checked_on = '2026-01-08';
 select is((pg_temp.wk('2026-01-05')).bodyweight_kg, 70.00, 'a deleted check-in no longer counts');
-select is((select count(*) from pg_policies where tablename = 'body_checkins'), 1::bigint, 'row level security policy exists');
+-- Another user cannot see these rows (row level security).
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a2', 'other@example.com');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.body_checkins where user_id = '00000000-0000-0000-0000-0000000000a1'), 0::bigint, 'another user sees none of your check-ins');
+reset role;
 
 select * from finish();
 rollback;

@@ -1,7 +1,7 @@
 -- Tests for backup exercises (what to do instead when the machine is taken). Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(18);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'test@example.com');
 insert into public.exercises (id, user_id, name, rep_min, rep_max, unilateral, dumbbell_pair, load_type, increment_kg) values
@@ -28,12 +28,9 @@ create function pg_temp.b() returns jsonb language sql as $$ select pg_temp.ws()
 select throws_ok($$update public.routine_exercises set backup_exercise_id = exercise_id where exercise_id = '00000000-0000-0000-0000-0000000000e3'$$, '23514', null, 'an exercise cannot be its own backup');
 
 select is(pg_temp.b() ->> 'name', 'Zz Dumbbell Press', 'workout_start gives the backup of an exercise');
-select is((pg_temp.b() ->> 'dumbbell_pair')::boolean, true, 'with its own exercise fields');
-select is((pg_temp.b() ->> 'increment_kg')::numeric, 4::numeric, 'and its own weight step');
+select ok((pg_temp.b() ->> 'dumbbell_pair')::boolean and (pg_temp.b() ->> 'increment_kg')::numeric = 4, 'the backup has its own exercise fields and weight step');
 select is(jsonb_array_length(pg_temp.b() -> 'sets'), 3, 'the backup has as many sets as the exercise it stands in for');
-select is((pg_temp.b() -> 'sets' -> 0 ->> 'target_weight_kg')::numeric, 40::numeric, 'set 1 starts from last time''s set 1');
-select is((pg_temp.b() -> 'sets' -> 0 ->> 'target_reps_min')::integer, 9, 'with the reps reached as the minimum');
-select is(pg_temp.b() -> 'sets' -> 0 ->> 'note', 'Same as last time', 'and says so on the first set');
+select ok((pg_temp.b() -> 'sets' -> 0 ->> 'target_weight_kg')::numeric = 40 and (pg_temp.b() -> 'sets' -> 0 ->> 'target_reps_min')::integer = 9 and pg_temp.b() -> 'sets' -> 0 ->> 'note' = 'Same as last time', 'set 1 starts from last time''s set 1: its weight, the reps reached as the minimum, and the note saying so');
 select is((pg_temp.b() -> 'sets' -> 2 ->> 'target_weight_kg')::numeric, 36::numeric, 'a set beyond last time''s sets starts from the last one there was');
 select is(jsonb_array_length(pg_temp.b() -> 'last'), 2, 'last time is included');
 select is(pg_temp.ws() -> 'exercises' -> 1 -> 'backup', 'null'::jsonb, 'an exercise without a backup: null');

@@ -25,7 +25,12 @@ select is(public.claude_instructions(true), 'GUIDE v2', 'a missing goal is skipp
 
 select throws_ok($$insert into public.documents (user_id, name, body) values ('00000000-0000-0000-0000-0000000000a1', 'planning-guide', 'dup')$$,
                  '23505', null, 'one document per name');
-select is((select count(*) from pg_policies where tablename = 'documents'), 1::bigint, 'row level security policy exists');
+-- Another user cannot see these rows (row level security).
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a2', 'other@example.com');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.documents where user_id = '00000000-0000-0000-0000-0000000000a1'), 0::bigint, 'another user sees none of your documents');
+reset role;
 
 -- The evidence notes come last, after the guide.
 insert into public.documents (user_id, name, body) values ('00000000-0000-0000-0000-0000000000a1', 'evidence-notes', 'EVIDENCE');
