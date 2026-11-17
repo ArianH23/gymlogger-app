@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Page } from '../components/Page'
 import { PageSkeleton } from '../components/Skeleton'
 import ConfirmDialog from '../components/ConfirmDialog'
-import RouteLine from '../components/RouteLine'
+import RouteView from '../components/RouteView'
 import ProfileChart from '../components/ProfileChart'
 import SplitList from '../components/SplitList'
 import { useNav } from '../lib/nav'
@@ -169,7 +169,7 @@ export default function RunPage({ id }: { id: string }) {
 
           <h2>Route</h2>
           <div className="card">
-            <RouteLine track={data.track} />
+            <RouteView track={data.track} />
           </div>
 
           {data.splits.length > 0 && (

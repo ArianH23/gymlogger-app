@@ -112,9 +112,15 @@ It needs signal (photos are not kept on the phone).
 
 Runs are tracked next to the gym sessions, but nothing plans them. History has a switch (All, Workouts, Runs); the Runs view
 shows the distance per week, your bests (fastest 5 km, fastest kilometre, longest run) and an **Import run** button. A run page
-shows distance, moving time and pace, the route as a line (no map service, so it works offline), the pace of each kilometre,
-and altitude and heart rate along the way when the file has them. Runs are on the calendar in blue and count for the week
-streak and the rest days.
+shows distance, moving time and pace, the route on a real map, the pace of each kilometre, and altitude and heart rate along
+the way when the file has them. Runs are on the calendar in blue and count for the week streak and the rest days.
+
+**The map** is Leaflet with OpenStreetMap tiles (`RunMap.tsx`, loaded only when a run with a route is opened), shown in the app's
+dark colours. Your GPS points never leave the app; the map server sees which tiles are requested, which is roughly the area of
+the run, and your IP address. Only the tiles on screen are requested, nothing is downloaded ahead, and the credit stays visible:
+those are OpenStreetMap's tile rules, so do not add offline map downloads on top of their server. With no signal, or after
+tapping **Line only**, the page draws the route as a plain line (`RouteLine.tsx`), which needs nothing from outside. If
+OpenStreetMap's server ever blocks the app, change the tile address in `RunMap.tsx` to another provider's.
 
 - **New runs:** in Google Health open the run, More, Export: that gives a TCX file. Pick it with Import run. The app only reads
   the file (`web/src/lib/tcx.ts`, with unit tests: `npm test` in `web/`); the database function `submit_run` computes
