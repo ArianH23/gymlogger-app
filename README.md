@@ -116,7 +116,8 @@ shows distance, moving time and pace, the route on a real map, the pace of each 
 the way when the file has them. Runs are on the calendar in blue and count for the week streak and the rest days.
 
 **The map** is Leaflet with OpenStreetMap tiles (`RunMap.tsx`, loaded only when a run with a route is opened), shown in the app's
-dark colours. Your GPS points never leave the app; the map server sees which tiles are requested, which is roughly the area of
+dark colours. The route is cut at every kilometre and each kilometre is coloured by its pace, slow orange through gold to fast
+jade, with a number at each kilometre mark and a legend (`lib/routePace.ts`; **Plain colour** turns it off). Your GPS points never leave the app; the map server sees which tiles are requested, which is roughly the area of
 the run, and your IP address. Only the tiles on screen are requested, nothing is downloaded ahead, and the credit stays visible:
 those are OpenStreetMap's tile rules, so do not add offline map downloads on top of their server. With no signal, or after
 tapping **Line only**, the page draws the route as a plain line (`RouteLine.tsx`), which needs nothing from outside. If

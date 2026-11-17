@@ -169,7 +169,7 @@ export default function RunPage({ id }: { id: string }) {
 
           <h2>Route</h2>
           <div className="card">
-            <RouteView track={data.track} />
+            <RouteView track={data.track} splits={data.splits} />
           </div>
 
           {data.splits.length > 0 && (
