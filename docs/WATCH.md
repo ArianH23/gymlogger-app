@@ -98,7 +98,10 @@ round). One database function, `sync_workout`, does all the merging; the phone a
 workout and adopt the answer. The rules (all in `supabase/migrations/..._live_workout.sql`, with tests):
 
 - **One open workout per user.** Starting a second one returns the open one instead (`other_open`).
-- **The same set from two devices is one row:** the newer log wins and the row keeps its first id.
+- **The same set from two devices is one row:** the newer log wins and the row keeps its first id. A log time in the future (a device
+  with a wrong clock) counts as now, so such a device cannot win every later edit.
+- **Times are kept sane:** a start in the future is brought back to now; a finish is never in the future and at most 24 hours after the
+  start. Sets that arrive after the workout was finished (a device that was offline) make the score and next plan be worked out again.
 - **A deleted set stays deleted**, even if another device still has it and sends it again.
 - **The plan layout** (exercises, added and removed sets) is last-writer-wins.
 - **Finishing** saves the feeling, marks the plan used and makes the next plan. A finished or discarded workout disappears

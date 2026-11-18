@@ -1,7 +1,7 @@
 -- Tests for the workout in progress shared between devices (sync_workout, open_workout). Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(35);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'test@example.com');
 insert into public.exercises (id, user_id, name, rep_min, rep_max, increment_kg) values
@@ -97,6 +97,34 @@ select public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d3
 select is(public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d4') || jsonb_build_object('ended_at', now())) ->> 'status', 'finished', 'uploading a finished offline workout is not blocked by an open one');
 select is(public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d3') || '{"discard": true}') ->> 'status', 'deleted', 'discarding returns deleted');
 select is(public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d3')) ->> 'status', 'deleted', 'a discarded workout stays deleted');
+
+-- A device with a wrong clock: start and finish times are kept out of the future, a finish is at most 24 hours after the start.
+select public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d5') || '{"started_at": "2099-01-01T00:00:00Z", "ended_at": "2099-01-05T00:00:00Z"}');
+select ok((select started_at <= clock_timestamp() and ended_at <= clock_timestamp() from public.sessions where id = '00000000-0000-0000-0000-0000000000d5'), 'a workout dated 2099 is stored as no later than now');
+select public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d6') || jsonb_build_object('started_at', now() - interval '4 days', 'ended_at', now()));
+select is((select ended_at - started_at from public.sessions where id = '00000000-0000-0000-0000-0000000000d6'), interval '24 hours', 'a workout that ends days after it started is cut at 24 hours');
+
+-- A set logged "in the future" does not win every later edit.
+select public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d7', jsonb_build_array(
+  jsonb_build_object('id', '00000000-0000-0000-0000-000000000f20'::uuid, 'exercise_id', '00000000-0000-0000-0000-0000000000e1'::uuid, 'set_no', 2, 'side', null,
+                     'weight_kg', 70, 'reps', 5, 'logged_at', '2100-01-01T00:00:00Z'::timestamptz))));
+select public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d7', jsonb_build_array(
+  jsonb_build_object('id', '00000000-0000-0000-0000-000000000f21'::uuid, 'exercise_id', '00000000-0000-0000-0000-0000000000e1'::uuid, 'set_no', 2, 'side', null,
+                     'weight_kg', 65, 'reps', 5, 'logged_at', clock_timestamp()))));
+select is((select weight_kg from public.sets where session_id = '00000000-0000-0000-0000-0000000000d7' and set_no = 2 and deleted_at is null), 65.00, 'a later edit with a correct clock replaces a set logged with a future time');
+
+-- Sets that arrive after the workout was finished make the next plan be worked out again; sending them again does not.
+create function pg_temp.pending_rules_plan() returns uuid language sql as $$
+  select id from public.planned_sessions where routine_id = '00000000-0000-0000-0000-0000000000b1' and created_by = 'rules' and status = 'pending'
+$$;
+create temp table plan_before as select pg_temp.pending_rules_plan() as id;
+select public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d1', jsonb_build_array(
+  pg_temp.set_json('00000000-0000-0000-0000-000000000f30', '00000000-0000-0000-0000-0000000000e2', 1, 30, 10, 5))));
+select isnt(pg_temp.pending_rules_plan(), (select id from plan_before), 'a set that arrives after the finish makes the plan be worked out again');
+create temp table plan_after as select pg_temp.pending_rules_plan() as id;
+select public.sync_workout(pg_temp.payload('00000000-0000-0000-0000-0000000000d1', jsonb_build_array(
+  pg_temp.set_json('00000000-0000-0000-0000-000000000f30', '00000000-0000-0000-0000-0000000000e2', 1, 30, 10, 5))));
+select is(pg_temp.pending_rules_plan(), (select id from plan_after), 'sending the same sets again leaves the plan alone');
 
 reset role;
 select ok(not has_function_privilege('anon', 'public.sync_workout(jsonb)', 'execute'), 'anonymous callers cannot sync');
