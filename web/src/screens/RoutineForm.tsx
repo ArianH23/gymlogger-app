@@ -137,7 +137,7 @@ export default function RoutineForm({ id }: { id?: string }) {
           <div className="card">
             <label>
               Name
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Legs" />
+              <input value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder="e.g. Legs" />
             </label>
           </div>
 

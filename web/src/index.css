@@ -245,7 +245,7 @@ h2.month:first-of-type { margin-top: 4px; }
 .routine-head .link { padding: 0; }
 .routine-item { margin-bottom: 10px; }
 .routine-item-name { font-size: var(--t-18); font-weight: 600; margin-bottom: 10px; }
-.routine-item-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.routine-item-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .routine-backup { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: var(--t-14); }
 .routine-backup-name { flex: 1; min-width: 120px; }
 .routine-backup .link { padding: 6px 2px; }

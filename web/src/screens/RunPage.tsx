@@ -106,11 +106,11 @@ export default function RunPage({ id }: { id: string }) {
             <div className="card">
               <label>
                 Name
-                <input value={title} onChange={(e) => setTitle(e.target.value)} />
+                <input value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
               </label>
               <label>
                 Notes
-                <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="how it felt, shoes, weather…" />
+                <input value={notes} maxLength={500} onChange={(e) => setNotes(e.target.value)} placeholder="how it felt, shoes, weather…" />
               </label>
               <button className="primary" disabled={busy} onClick={save}>
                 {busy ? 'Saving…' : 'Save'}

@@ -5,6 +5,7 @@ import { db } from '../lib/db'
 import { useNav } from '../lib/nav'
 import { formatDate } from '../lib/format'
 import { loadScores, type Score } from '../lib/score'
+import { loadSetCounts } from '../lib/setCounts'
 import { formatDuration, formatKm, formatPace, loadRuns, type RunRow } from '../lib/runs'
 import ScoreBadge from '../components/ScoreBadge'
 import { ListSkeleton } from '../components/Skeleton'
@@ -13,7 +14,7 @@ import WorkoutCalendar from '../components/WorkoutCalendar'
 import RunImport from '../components/RunImport'
 import RunTrends from '../components/RunTrends'
 
-type SessionRow = { id: string; title: string; started_at: string; ended_at: string | null; set_count: number; score?: Score | null }
+type SessionRow = { id: string; title: string; started_at: string; ended_at: string | null; set_count: number | null; score?: Score | null }
 type Show = 'all' | 'workouts' | 'runs'
 type Item = { kind: 'workout'; at: string; session: SessionRow } | { kind: 'run'; at: string; run: RunRow }
 
@@ -47,10 +48,9 @@ export default function History() {
     setLoading(true)
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, title, started_at, ended_at, sets(count)')
+      .select('id, title, started_at, ended_at')
       .is('deleted_at', null)
       .not('ended_at', 'is', null)
-      .is('sets.deleted_at', null) // do not count sets that were deleted
       .order('started_at', { ascending: false })
       .range(from, from + PAGE - 1)
     setLoading(false)
@@ -62,13 +62,15 @@ export default function History() {
       return
     }
     setOffline(false)
-    const scores = await loadScores((data ?? []).map((s) => s.id as string)).catch(() => new Map<string, Score>()) // a bonus: the list works without it
+    const ids = (data ?? []).map((s) => s.id as string)
+    const scores = await loadScores(ids).catch(() => new Map<string, Score>()) // a bonus: the list works without it
+    const counts = await loadSetCounts(ids).catch(() => null) // also a bonus: without it the list shows no set count rather than a wrong one
     const rows = (data ?? []).map((s) => ({
       id: s.id as string,
       title: s.title as string,
       started_at: s.started_at as string,
       ended_at: s.ended_at as string | null,
-      set_count: (s.sets as unknown as { count: number }[])[0]?.count ?? 0,
+      set_count: counts ? (counts.get(s.id as string) ?? 0) : null,
       score: scores.get(s.id as string) ?? null,
     }))
     setMore(rows.length === PAGE)
@@ -174,7 +176,9 @@ export default function History() {
             <button className="card list-item" onClick={() => push({ type: 'session', id: s.id })}>
               <span className="routine-title">{s.title}</span>
               <span className="muted">
-                {formatDate(s.started_at)} · {s.set_count} sets{mins ? ` · ${mins} min` : ''}
+                {formatDate(s.started_at)}
+                {s.set_count === null ? '' : ` · ${s.set_count} ${s.set_count === 1 ? 'set' : 'sets'}`}
+                {mins ? ` · ${mins} min` : ''}
               </span>
               <ScoreBadge score={s.score} />
             </button>

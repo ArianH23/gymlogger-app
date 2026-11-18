@@ -58,7 +58,7 @@ export default function LineChart({ points, selected, onSelect, formatValue, for
     const t0 = points[0].t
     const t1 = points[points.length - 1].t
     const span = Math.max(t1 - t0, 1)
-    const plotW = width - M.left - M.right
+    const plotW = Math.max(width - M.left - M.right, 1) // 0 wide while hidden: no negative size
     const plotH = height - M.top - M.bottom
     const x = (t: number) => (points.length === 1 ? M.left + plotW / 2 : M.left + ((t - t0) / span) * plotW)
     const y = (v: number) => M.top + (1 - (v - lo) / (hi - lo)) * plotH

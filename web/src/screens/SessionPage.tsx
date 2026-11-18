@@ -80,7 +80,7 @@ export async function loadSession(id: string): Promise<Loaded> {
         const lowest = Math.min(...sorted.map((r) => r.reps ?? 0))
         if (!warmup) {
           setCount += 1
-          volume += (sorted[0].weight_kg ?? 0) * lowest
+          if (rows[0].exercises.load_type !== 'assisted') volume += (sorted[0].weight_kg ?? 0) * lowest // assistance is not load that was lifted
         }
         const h = hrBy.get(`${exerciseId}|${setNo}`)
         return { setNo, weight: sorted[0].weight_kg, reps: sorted.map((r) => r.reps ?? '–').join(' / '), warmup, peak: h?.peak ?? null, drop: h?.drop ?? null }

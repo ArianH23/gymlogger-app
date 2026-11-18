@@ -111,7 +111,7 @@ export default function ExerciseForm({ id }: { id?: string }) {
         <form className="card" onSubmit={save}>
           <label>
             Name
-            <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Pec Fly (Machine)" required />
+            <input value={form.name} maxLength={100} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Pec Fly (Machine)" required />
           </label>
 
           <label>

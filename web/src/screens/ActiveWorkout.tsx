@@ -47,6 +47,7 @@ function SetRow({ ex, setNo, side, logged, draft, onDraft, onToggle }: RowProps)
   const label = side ?? String(setNo)
   const weight = logged ? num(logged.weightKg) : draft.weight
   const reps = logged ? String(logged.reps) : draft.reps
+  const lastTap = useRef(-1000) // a double tap on the check must not log the set and straight away undo it
   return (
     <div className={`set-row${logged ? ' done' : ''}`}>
       <span className="set-label">{label}</span>
@@ -69,7 +70,15 @@ function SetRow({ ex, setNo, side, logged, draft, onDraft, onToggle }: RowProps)
         placeholder="reps"
         onChange={(e) => onDraft({ ...draft, reps: e.target.value })}
       />
-      <button className="check" aria-label={logged ? 'Undo set' : 'Log set'} onClick={onToggle}>
+      <button
+        className="check"
+        aria-label={logged ? 'Undo set' : 'Log set'}
+        onClick={(e) => {
+          if (e.timeStamp - lastTap.current < 500) return
+          lastTap.current = e.timeStamp
+          onToggle()
+        }}
+      >
         ✓
       </button>
     </div>

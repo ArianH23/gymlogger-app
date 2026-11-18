@@ -75,6 +75,7 @@ VIEWS = [
     ("weekly_balance", "per week: push against pull, front against back, upper against lower, quads against hamstrings"),
     ("monthly_balance", "the same balance, per month"),
     ("set_heart_rate", "per set: the peak heart rate around it and how far it fell in the rest after"),
+    ("session_set_counts", "per session: its working sets, a left/right pair counted once"),
 ]
 FUNCS = [
     ("generate_plan(routine)", "progression rules → the automatic plan"),
@@ -168,7 +169,7 @@ legend = f'''<g font-size="13" fill="#222"><rect x="30" y="{H - 70}" width="1580
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="{H}" viewBox="0 0 1640 {H}" font-family="Segoe UI, Arial, sans-serif">
 <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#444"/></marker></defs>
 <rect width="1640" height="{H}" fill="#fff"/>
-<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 34 functions</text>
+<text x="30" y="34" font-size="22" font-weight="700" fill="#222">GymLogger database: {len(T)} tables, {len(VIEWS)} views, 36 functions</text>
 {"".join(arrows)}{tables}{p1}{p2}{legend}</svg>'''
 
 out = Path(__file__).resolve().parent.parent / "docs" / "schema.svg"
