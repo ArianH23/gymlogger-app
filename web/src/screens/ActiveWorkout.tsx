@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type LastSet, type LoggedSet, type PlanExercise, type PlanSet, type Workout } from '../lib/db'
 import RestTimer, { restSeconds, type Rest } from '../components/RestTimer'
-import { noteDeletedSet, scheduleSync, syncPending, touchLive } from '../lib/sync'
+import { discardWorkout, noteDeletedSet, scheduleSync, syncPending, touchLive } from '../lib/sync'
+import { parseSetInput } from '../lib/setInput'
 import { useNav } from '../lib/nav'
 import { supabase } from '../lib/supabase'
 import ExercisePicker from '../components/ExercisePicker'
@@ -83,6 +84,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const [rest, setRest] = useState<Rest | null>(null)
   const [picking, setPicking] = useState(false)
   const [askFinish, setAskFinish] = useState(false)
+  const [inputError, setInputError] = useState<string | null>(null) // why the last set was not logged
   const [muscles, setMuscles] = useState<Record<string, ExerciseMuscle[]>>({})
 
   // which muscles each exercise works: a bonus, kept on the phone so it shows offline too
@@ -111,9 +113,12 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
       scheduleSync()
       return
     }
-    const reps = parseInt(draft.reps, 10)
-    if (Number.isNaN(reps)) return // nothing to log without reps
-    const weight = parseFloat(draft.weight.replace(',', '.'))
+    const input = parseSetInput(draft.weight, draft.reps)
+    if (!input.ok) {
+      setInputError(`Set ${setNo}${side ? ` ${side}` : ''}: ${input.message}`) // the server would refuse it, and then the whole workout could not upload
+      return
+    }
+    setInputError(null)
     const otherSide: Side = side === 'L' ? 'R' : side === 'R' ? 'L' : null
     const setComplete = side === null || loggedByKey.has(rowKey(ex.exerciseId, setNo, otherSide))
     if (setComplete) {
@@ -127,8 +132,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
       exerciseId: ex.exerciseId,
       setNo,
       side,
-      weightKg: Number.isNaN(weight) ? null : weight,
-      reps,
+      weightKg: input.weightKg,
+      reps: input.reps,
       isWarmup: false,
       loggedAt: new Date().toISOString(),
       synced: 0,
@@ -198,10 +203,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
 
   async function discard(ask = true) {
     if (ask && !window.confirm('Discard this workout and everything logged in it?')) return
-    await db.sets.where('sessionId').equals(workoutId).delete()
-    await db.workouts.delete(workoutId)
-    await db.discards.put({ id: workoutId }) // the server (and the other devices) throw it away too, as soon as there is signal
-    scheduleSync(0)
+    await discardWorkout(workoutId)
     onExit()
   }
 
@@ -247,6 +249,11 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
           </button>
         </div>
         <h1>{workout.title}</h1>
+        {inputError && (
+          <p className="error" role="alert">
+            {inputError}
+          </p>
+        )}
         <p className="muted">
           Started {new Date(workout.startedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} ·{' '}
           {logged.length} {logged.length === 1 ? 'set' : 'sets'} logged
@@ -299,7 +306,10 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                           planSet={planSet}
                           logged={loggedByKey.get(key)}
                           draft={draft}
-                          onDraft={(d) => setDrafts((prev) => ({ ...prev, [key]: d }))}
+                          onDraft={(d) => {
+                            setInputError(null)
+                            setDrafts((prev) => ({ ...prev, [key]: d }))
+                          }}
                           onToggle={() => toggle(ex, setNo, side, draft)}
                         />
                       )

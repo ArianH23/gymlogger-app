@@ -41,6 +41,7 @@ export type Workout = {
   endedAt: string | null
   feeling?: number | null // optional 1-5 "how did it feel", tapped when finishing
   syncedAt?: string | null // set once the session, its sets and finish_session have all reached Supabase
+  syncError?: string | null // why the server refused this workout (bad data in it); it waits, and the workouts behind it still upload
   // Sharing the open workout with other devices (see lib/sync.ts and the database function sync_workout):
   removedSets?: Record<string, number[]> // exerciseId -> set numbers taken off the list (the watch can do this)
   deletedSetIds?: string[] // sets deleted here that the server may still have; sent with the next sync

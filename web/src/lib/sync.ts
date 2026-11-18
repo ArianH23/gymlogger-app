@@ -1,6 +1,7 @@
 import { db, type LoggedSet, type Workout } from './db'
 import { supabase } from './supabase'
 import { fromLive, setFromServer, setKey, setToServer, toLive, type ServerWorkout } from './live'
+import { describeRejection, isRejection } from './syncErrors'
 
 // One database function, sync_workout, does all the merging between devices (see its migration). This file only:
 //   1. sends this phone's view of a workout (its sets, deletions, plan layout, and ended_at + feeling when finished),
@@ -132,8 +133,20 @@ async function runOnce(): Promise<void> {
     await callSync({ id: d.id, discard: true })
     await db.discards.delete(d.id)
   }
-  // 2. finished workouts that have not been confirmed by the server yet
-  for (const w of await db.workouts.filter((x) => !!x.endedAt && !x.syncedAt).toArray()) await syncOne(w)
+  // 2. finished workouts that have not been confirmed by the server yet. One the server refuses (bad data in it) is set aside
+  // with the reason and does not hold back the others; no signal and the like still stop the run, to try again later.
+  const refused: string[] = []
+  for (const w of await db.workouts.filter((x) => !!x.endedAt && !x.syncedAt).toArray()) {
+    try {
+      await syncOne(w)
+      if (w.syncError) await db.workouts.update(w.id, { syncError: null })
+    } catch (e) {
+      if (!isRejection(e)) throw e
+      const why = describeRejection(e)
+      await db.workouts.update(w.id, { syncError: why })
+      refused.push(`“${w.title}”: ${why}`)
+    }
+  }
   // 3. the open workout: share it, or look for one started elsewhere
   const open = await db.workouts.filter((x) => !x.endedAt).first()
   if (open) {
@@ -143,6 +156,21 @@ async function runOnce(): Promise<void> {
     if (error) throw error
     if (data) await adoptRemote(data as unknown as ServerWorkout)
   }
+  if (refused.length) throw new Error(refused.join('\n'))
+}
+
+/** Puts a finished workout the server refused back in progress, so the bad set can be corrected and the workout finished again. False if another workout is open. */
+export async function reopenWorkout(id: string): Promise<boolean> {
+  if (await db.workouts.filter((x) => !x.endedAt).first()) return false
+  await db.workouts.update(id, { endedAt: null, syncedAt: null, syncError: null })
+  return true
+}
+
+/** Throws a workout away on this phone and, as soon as there is signal, on the server and the other devices. */
+export async function discardWorkout(id: string): Promise<void> {
+  await removeLocal(id)
+  await db.discards.put({ id }) // the server (and the other devices) throw it away too
+  scheduleSync(0)
 }
 
 let running: Promise<string | null> | null = null

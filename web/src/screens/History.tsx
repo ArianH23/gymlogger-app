@@ -142,7 +142,7 @@ export default function History() {
           <div className="card" key={w.id}>
             <div className="routine-title">{w.title}</div>
             <div className="muted">{formatDate(w.startedAt)}</div>
-            <span className="badge">waiting to upload</span>
+            <span className="badge">{w.syncError ? 'refused by the server' : 'waiting to upload'}</span>
           </div>
         ))}
 

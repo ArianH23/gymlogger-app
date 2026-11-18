@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { supabase } from '../lib/supabase'
 import { db } from '../lib/db'
 import { prefetchPlans, startEmptyWorkout, startRoutineWorkout } from '../lib/workoutPlan'
-import { syncPending } from '../lib/sync'
+import { discardWorkout, reopenWorkout, syncPending } from '../lib/sync'
 import { useNav } from '../lib/nav'
 import { daysAgo } from '../lib/format'
 import { latestCheckinDay } from '../lib/checkins'
@@ -48,7 +48,9 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState<string | null>(null)
   const inProgress = useLiveQuery(() => db.workouts.filter((w) => !w.endedAt).toArray(), [])
-  const waiting = useLiveQuery(() => db.workouts.filter((w) => !!w.endedAt && !w.syncedAt).count(), [])
+  const waitingList = useLiveQuery(() => db.workouts.filter((w) => !!w.endedAt && !w.syncedAt).toArray(), [])
+  const waiting = waitingList?.length ?? 0
+  const refused = (waitingList ?? []).filter((w) => !!w.syncError) // the server refused something in these: they wait for you, the others upload by themselves
   const [retrying, setRetrying] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   // null = unknown (no signal): the reminder only shows when we know a check-in is due
@@ -65,6 +67,15 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
     setRetrying(true)
     setUploadError(await syncPending())
     setRetrying(false)
+  }
+
+  /** Puts a refused workout back in progress, to correct it and finish it again. */
+  async function fix(id: string) {
+    if (await reopenWorkout(id)) onOpen(id)
+  }
+
+  async function throwAway(id: string, title: string) {
+    if (window.confirm(`Discard “${title}” and everything logged in it?`)) await discardWorkout(id)
   }
 
   async function startEmpty() {
@@ -130,8 +141,27 @@ export default function Routines({ onOpen }: { onOpen: (workoutId: string) => vo
           <strong>
             {waiting} {waiting === 1 ? 'workout' : 'workouts'} waiting to upload
           </strong>
-          <p className="muted">Saved on this phone. It uploads by itself when there is signal.</p>
-          {uploadError && <p className="error">{uploadError}</p>}
+          <p className="muted">
+            {refused.length === 0
+              ? 'Saved on this phone. It uploads by itself when there is signal.'
+              : `Saved on this phone. ${refused.length === 1 ? 'One of them was' : `${refused.length} of them were`} refused by the server, so nothing will fix ${refused.length === 1 ? 'it' : 'them'} by waiting. The others upload by themselves.`}
+          </p>
+          {refused.map((w) => (
+            <div className="stuck" key={w.id}>
+              <div className="routine-title">{w.title}</div>
+              <p className="error">The server refused it: {w.syncError}</p>
+              <div className="card-actions">
+                <button className="link" disabled={!!current} onClick={() => fix(w.id)}>
+                  Fix it
+                </button>
+                <button className="link danger" onClick={() => throwAway(w.id, w.title)}>
+                  Discard
+                </button>
+              </div>
+              {current && <p className="muted note">Finish or discard the workout in progress first.</p>}
+            </div>
+          ))}
+          {uploadError && refused.length === 0 && <p className="error">{uploadError}</p>}
           <button className="primary" disabled={retrying} onClick={retry}>
             {retrying ? 'Uploading…' : 'Retry now'}
           </button>

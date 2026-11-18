@@ -294,6 +294,8 @@ h2.month:first-of-type { margin-top: 4px; }
 .table.weeks .table-row { grid-template-columns: 1fr 0.9fr 0.9fr 0.9fr 0.8fr; font-size: var(--t-14); }
 .table.weeks .table-row.head { font-size: 11px; }
 .waiting { border-color: #5a4a1f; }
+.waiting .stuck { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.waiting .stuck .error { margin: 4px 0 0; }
 
 /* Session editor */
 .ex-title.static { cursor: default; }
