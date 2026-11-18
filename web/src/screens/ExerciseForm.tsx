@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { FormSkeleton } from '../components/Skeleton'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { Page } from '../components/Page'
 import { supabase } from '../lib/supabase'
 import { useNav } from '../lib/nav'
@@ -23,11 +24,12 @@ const toNum = (s: string) => (s.trim() === '' ? null : parseFloat(s.replace(',',
 
 /** Add a new exercise (no id) or edit an existing one's settings. Rep range and increment drive the plans. */
 export default function ExerciseForm({ id }: { id?: string }) {
-  const { back } = useNav()
+  const { back, popToRoot } = useNav()
   const [form, setForm] = useState<Form>(EMPTY)
   const [loaded, setLoaded] = useState(!id)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [asking, setAsking] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -83,6 +85,23 @@ export default function ExerciseForm({ id }: { id?: string }) {
       return setError(result.error.code === '23505' ? 'You already have an exercise with that name.' : result.error.message)
     }
     back()
+  }
+
+  /** Deleting keeps the logged sets in the history; the database refuses while a routine still uses the exercise. */
+  async function remove() {
+    setAsking(false)
+    setBusy(true)
+    setError(null)
+    const { error: e } = await supabase.rpc('delete_exercise', { p_exercise_id: id! })
+    setBusy(false)
+    if (e) return setError(e.message.charAt(0).toUpperCase() + e.message.slice(1) + (e.message.endsWith('.') ? '' : '.'))
+    try {
+      const saved = localStorage.getItem('gl_exercises') // the copy kept for offline use no longer lists it
+      if (saved) localStorage.setItem('gl_exercises', JSON.stringify((JSON.parse(saved) as { id: string }[]).filter((x) => x.id !== id)))
+    } catch {
+      // a copy that cannot be read is replaced the next time the list loads
+    }
+    popToRoot() // the exercise's own page is gone too
   }
 
   return (
@@ -148,6 +167,16 @@ export default function ExerciseForm({ id }: { id?: string }) {
             {busy ? 'Saving…' : 'Save'}
           </button>
         </form>
+      )}
+      {loaded && id && (
+        <button className="link danger" disabled={busy} onClick={() => setAsking(true)}>
+          Delete exercise
+        </button>
+      )}
+      {asking && (
+        <ConfirmDialog title="Delete this exercise?" confirmLabel="Delete" onConfirm={remove} onCancel={() => setAsking(false)}>
+          <p>It leaves your exercise list. The sets you logged stay in your history, and the name can be used again. A routine that still uses it has to drop it first.</p>
+        </ConfirmDialog>
       )}
       {error && !loaded && <div className="card error">{error}</div>}
     </Page>

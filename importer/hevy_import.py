@@ -234,16 +234,22 @@ class RestClient:
                 raise RuntimeError(f"{table}: {r.status_code} {r.text}")
 
     def select(self, table, columns, **filters):
-        r = self.http.get(f"{self.base}/{table}", params={"select": columns, **{k: f"eq.{v}" for k, v in filters.items()}})
+        # a filter value like "is.null" is passed as it is; anything else must equal
+        params = {k: (v if str(v).startswith("is.") else f"eq.{v}") for k, v in filters.items()}
+        r = self.http.get(f"{self.base}/{table}", params={"select": columns, **params})
         r.raise_for_status()
         return r.json()
 
 
 def upload(result, client, user_id):
-    """Write everything with upserts. Exercises already in the database (same name) are kept as they are,
-    so edits you made to increments or rep ranges survive a re-import."""
-    client.upsert("exercises", result["exercises"], "user_id,name", ignore_duplicates=True)
-    db_ids = {e["name"]: e["id"] for e in client.select("exercises", "id,name", user_id=user_id)}
+    """Write everything with upserts. Exercises already in the database (same name, not deleted) are kept as they are,
+    so edits you made to increments or rep ranges survive a re-import. The name is only unique among exercises that are
+    not deleted, so the others are added by id (a deleted exercise with the same id comes back)."""
+    existing = {e["name"]: e["id"] for e in client.select("exercises", "id,name", user_id=user_id, deleted_at="is.null")}
+    new = [{**e, "deleted_at": None} for e in result["exercises"] if e["name"] not in existing]
+    if new:
+        client.upsert("exercises", new, "id")
+    db_ids = {**{e["name"]: e["id"] for e in result["exercises"]}, **existing}
     remap = {e["id"]: db_ids[e["name"]] for e in result["exercises"]}
     for table in ("routine_exercises", "sets", "session_exercise_notes"):
         for row in result[table]:

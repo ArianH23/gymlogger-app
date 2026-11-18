@@ -160,7 +160,10 @@ class FakeClient:
                 match.update(row)
 
     def select(self, table, columns, **filters):
-        return [dict(r) for r in self.tables[table]]
+        rows = [dict(r) for r in self.tables[table]]
+        if filters.get("deleted_at") == "is.null":
+            rows = [r for r in rows if r.get("deleted_at") is None]
+        return rows
 
 
 SAMPLE = csv_rows(
@@ -189,6 +192,26 @@ def test_reimport_keeps_edits_made_to_an_existing_exercise_and_uses_its_id():
     assert len(squat) == 1 and squat[0]["increment_kg"] == 2.5
     squat_sets = [s for s in client.tables["sets"] if s["reps"] == 10]
     assert [s["exercise_id"] for s in squat_sets] == [mine["id"]]
+
+
+def test_a_deleted_exercise_with_the_same_name_is_not_reused():
+    # the name is unique only among exercises that are not deleted, so a deleted one and a live one can share it
+    gone = {"id": "88888888-8888-8888-8888-888888888888", "user_id": USER, "deleted_at": "2026-01-01T00:00:00Z", **ex("Squat (Barbell)")}
+    live = {"id": "99999999-9999-9999-9999-999999999999", "user_id": USER, **ex("Squat (Barbell)")}
+    client = FakeClient([gone, live])
+    h.upload(build(SAMPLE), client, USER)
+    squat_sets = [s for s in client.tables["sets"] if s["reps"] == 10]
+    assert [s["exercise_id"] for s in squat_sets] == [live["id"]]
+    assert len([e for e in client.tables["exercises"] if e["name"] == "Squat (Barbell)"]) == 2  # nothing was added
+
+
+def test_an_exercise_deleted_after_an_import_comes_back_with_its_own_id():
+    built = build(SAMPLE)
+    squat = next(e for e in built["exercises"] if e["name"] == "Squat (Barbell)")
+    client = FakeClient([{**squat, "deleted_at": "2026-01-01T00:00:00Z"}])
+    h.upload(build(SAMPLE), client, USER)
+    rows = [e for e in client.tables["exercises"] if e["name"] == "Squat (Barbell)"]
+    assert len(rows) == 1 and rows[0]["deleted_at"] is None
 
 
 def test_dumbbell_row_is_two_dumbbells_before_feb_2026_and_single_arm_after():

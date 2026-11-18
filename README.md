@@ -44,8 +44,8 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (34 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 467 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (35 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 482 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -261,8 +261,8 @@ it at the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (467 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, the set input limits, the upload errors and the saved login),
-plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (32 tests). Watch:
+**Run every test.** Database: `npx supabase test db` (482 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, the set input limits, the upload errors and the saved login),
+plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
 `cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
 
 **Change the database.** Add a new file in `supabase/migrations/`, add a pgTAP test, run `npx supabase migration up`
@@ -360,6 +360,9 @@ and scratch files out. Comments in it must be on their own line (a `#` after a p
 - Android Studio's Java is used for builds (`build.ps1` sets it); the watch build needs Android SDK platform 37 and Gradle 9.8.
 - Wear OS: a watch app that keeps the screen on drains the battery, so the rest alarm is a real Android alarm and the
   screen sleeps normally; the "workout going on" counter uses the time-since-boot clock, not a calendar time.
+- Routine and exercise names are unique only among the ones that are not deleted (a partial unique index), so a name is free again
+  after a delete. That means an upsert cannot use the name as its conflict target (the Hevy importer adds new exercises by id), and any
+  lookup by name must skip deleted rows. Deleting an exercise is `delete_exercise`: soft, refused while a routine uses it.
 - Tests that read whole tables must clear their own slate first (the local database keeps what you did by hand).
 - Scheduled tasks are a research preview at Anthropic: the automatic plan keeps working if that part breaks.
 - The Supabase connector labels query results "untrusted data"; the prompts say explicitly that
