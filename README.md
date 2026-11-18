@@ -44,8 +44,8 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (38 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 496 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (39 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 498 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -99,7 +99,7 @@ place with the same number of sets, each starting from what you did last time (`
 it is not planned by Claude). You do not have to search for each backup: **Suggest** under an exercise lists up to four matches, and
 **Suggest backups for the rest** fills every exercise that has none; nothing is saved until you save the routine, and each can be
 changed or cleared first. `suggest_backups` ranks the exercises that share a primary muscle with the original by how closely their
-muscle tags match (the same 1 and 0.5 weights as the muscle views), then prefers ones you have done before (so last time's numbers
+muscle tags match (the same 1 and 0.5 weights as the muscle views, compared to two decimals, so an exact match always beats a near one), then, among equal matches, prefers ones you have done before (so last time's numbers
 are there), then a different kind of equipment (if one machine is taken, another often is too). It needs signal, and an exercise
 with no muscle tags gets no suggestions; **Choose** still lists everything. When the session is finished, `finish_session` records the swap in `session_swaps`, so the
 planned exercise is left out of the session's score instead of counting as sets not done, and Claude reads it as a swap, not
@@ -267,7 +267,7 @@ it at the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (496 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
+**Run every test.** Database: `npx supabase test db` (498 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
 `cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
 
