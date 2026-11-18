@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { FormSkeleton } from '../components/Skeleton'
 import { Page } from '../components/Page'
 import ExercisePicker from '../components/ExercisePicker'
+import ReplacePanel from '../components/ReplacePanel'
+import { replaceRoutineItem } from '../lib/replace'
 import { useNav } from '../lib/nav'
 import { db } from '../lib/db'
 import {
@@ -30,6 +32,8 @@ export default function RoutineForm({ id }: { id?: string }) {
   // suggested backups: the list shown under one exercise, and the note after "Suggest for all"
   const [suggesting, setSuggesting] = useState<{ exerciseId: string; list: BackupSuggestion[] | null; error: string | null } | null>(null)
   const [fillNote, setFillNote] = useState<string | null>(null)
+  const [replacing, setReplacing] = useState<string | null>(null) // the exercise whose replacements are shown under it
+  const [replaceSearch, setReplaceSearch] = useState<string | null>(null) // the exercise being replaced from the full list
   const [filling, setFilling] = useState(false)
 
   useEffect(() => {
@@ -145,7 +149,24 @@ export default function RoutineForm({ id }: { id?: string }) {
           {items.length === 0 && <p className="muted">No exercises yet.</p>}
           {items.map((it, i) => (
             <div className="card routine-item" key={it.exerciseId}>
-              <div className="routine-item-name">{it.name}</div>
+              <div className="routine-item-head">
+                <div className="routine-item-name">{it.name}</div>
+                <button className="link" onClick={() => setReplacing(replacing === it.exerciseId ? null : it.exerciseId)} aria-expanded={replacing === it.exerciseId}>
+                  Replace
+                </button>
+              </div>
+              {replacing === it.exerciseId && (
+                <ReplacePanel
+                  exerciseId={it.exerciseId}
+                  exclude={items.map((x) => x.exerciseId)}
+                  onPick={(s) => {
+                    setItems((l) => replaceRoutineItem(l, it.exerciseId, { exerciseId: s.exerciseId, name: s.name }))
+                    setReplacing(null)
+                  }}
+                  onSearch={() => setReplaceSearch(it.exerciseId)}
+                  onCancel={() => setReplacing(null)}
+                />
+              )}
               <div className="routine-item-row">
                 <div className="stepper" aria-label="Sets">
                   <button onClick={() => setSets(i, -1)} aria-label="Fewer sets">−</button>
@@ -237,6 +258,17 @@ export default function RoutineForm({ id }: { id?: string }) {
           onPick={(row) => {
             setPicking(false)
             setItems((l) => [...l, { exerciseId: row.id, name: row.name, targetSets: 3 }])
+          }}
+        />
+      )}
+      {replaceSearch && (
+        <ExercisePicker
+          taken={new Set(items.map((i) => i.exerciseId))}
+          onClose={() => setReplaceSearch(null)}
+          onPick={(row) => {
+            setItems((l) => replaceRoutineItem(l, replaceSearch, { exerciseId: row.id, name: row.name }))
+            setReplaceSearch(null)
+            setReplacing(null)
           }}
         />
       )}

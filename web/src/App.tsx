@@ -86,7 +86,7 @@ function Shell() {
   const backToWorkout =
     unfinished && !workoutOnScreen ? (
       <button
-        className="resume-fab"
+        className={`resume-fab${page === null ? '' : ' low'}`}
         onClick={() => {
           setOpenWorkout(unfinished.id)
           popToRoot() // close any pages on top, so the workout is what you see

@@ -7,13 +7,15 @@ import { parseSetInput } from '../lib/setInput'
 import { useNav } from '../lib/nav'
 import { supabase } from '../lib/supabase'
 import ExercisePicker from '../components/ExercisePicker'
+import ReplacePanel from '../components/ReplacePanel'
 import FinishSheet from '../components/FinishSheet'
 import MuscleTags from '../components/MuscleTags'
 import { loadExerciseMuscles, type ExerciseMuscle } from '../lib/muscles'
 import { createRoutine, suggestRoutineName } from '../lib/routines'
-import type { ExerciseRow } from '../lib/exerciseList'
+import { loadExerciseList, type ExerciseRow } from '../lib/exerciseList'
 import { num, targetText } from '../lib/format'
 import { removeSetRow, visibleSetNos } from '../lib/setRows'
+import { replaceInWorkout } from '../lib/replace'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -92,6 +94,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [rest, setRest] = useState<Rest | null>(null)
   const [picking, setPicking] = useState(false)
+  const [replacing, setReplacing] = useState<string | null>(null) // the exercise whose replacements are shown under it
+  const [replaceSearch, setReplaceSearch] = useState<string | null>(null) // the exercise being replaced from the full list
   const [askFinish, setAskFinish] = useState(false)
   const [inputError, setInputError] = useState<string | null>(null) // why the last set was not logged
   const [muscles, setMuscles] = useState<Record<string, ExerciseMuscle[]>>({})
@@ -162,9 +166,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     await touchLive(w.id)
   }
 
-  /** Adds an exercise that isn't in the plan. Sets start from what you did last time, when that is known. */
-  async function addExercise(row: ExerciseRow) {
-    setPicking(false)
+  /** An exercise for the plan. Its sets start from what you did last time, when that is known (and are 3 when `count` is not given). */
+  async function planExercise(row: ExerciseRow, count?: number): Promise<PlanExercise> {
     let last: LastSet[] = []
     try {
       const { data } = await supabase
@@ -176,12 +179,12 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     } catch {
       // no signal: the exercise is added without last-time numbers
     }
-    const count = Math.max(last.length, 3)
-    const sets: PlanSet[] = Array.from({ length: count }, (_, i) => {
+    const n = count ?? Math.max(last.length, 3)
+    const sets: PlanSet[] = Array.from({ length: n }, (_, i) => {
       const l = last[i] ?? last[last.length - 1]
       return { setNo: i + 1, weightKg: l?.weightKg ?? null, repsMin: l?.repsResult ?? null, repsMax: null, note: i === 0 && l ? 'Same as last time' : null }
     })
-    const ex: PlanExercise = {
+    return {
       exerciseId: row.id,
       name: row.name,
       loadType: row.loadType,
@@ -190,8 +193,32 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
       sets,
       last,
     }
+  }
+
+  /** Adds an exercise that isn't in the plan. */
+  async function addExercise(row: ExerciseRow) {
+    setPicking(false)
+    const ex = await planExercise(row)
     await db.workouts.update(workoutId, { plan: [...workout!.plan, ex] })
     await touchLive(workoutId)
+  }
+
+  /** Puts another exercise where this one is, with the same number of sets. Only while nothing is logged for it. */
+  async function replaceExercise(w: Workout, old: PlanExercise, row: ExerciseRow) {
+    setReplacing(null)
+    setReplaceSearch(null)
+    if (logged!.some((s) => s.exerciseId === old.exerciseId)) return
+    const count = Math.max(1, visibleSetNos(w, old.exerciseId, old.sets.map((s) => s.setNo)).length)
+    const next = await planExercise(row, count)
+    await db.workouts.update(w.id, replaceInWorkout(w, old.exerciseId, next))
+    await touchLive(w.id)
+  }
+
+  /** A suggestion has only an id and a name: the rest of the exercise comes from the list kept on the phone. */
+  async function replaceWithSuggestion(w: Workout, old: PlanExercise, exerciseId: string) {
+    const row = (await loadExerciseList())?.rows.find((r) => r.id === exerciseId)
+    if (row) await replaceExercise(w, old, row)
+    else setReplaceSearch(old.exerciseId) // not in the saved list: choose it from the full list instead
   }
 
   /** Only for an exercise you haven't logged anything for yet (to swap it for another). */
@@ -331,11 +358,25 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                   + Set
                 </button>
                 {!logged.some((s) => s.exerciseId === ex.exerciseId) && (
+                  <button className="link" onClick={() => setReplacing(replacing === ex.exerciseId ? null : ex.exerciseId)} aria-expanded={replacing === ex.exerciseId}>
+                    Replace
+                  </button>
+                )}
+                {!logged.some((s) => s.exerciseId === ex.exerciseId) && (
                   <button className="link danger" onClick={() => removeExercise(workout, ex.exerciseId)}>
                     Remove exercise
                   </button>
                 )}
               </div>
+              {replacing === ex.exerciseId && !logged.some((s) => s.exerciseId === ex.exerciseId) && (
+                <ReplacePanel
+                  exerciseId={ex.exerciseId}
+                  exclude={workout.plan.map((e) => e.exerciseId)}
+                  onPick={(s) => void replaceWithSuggestion(workout, ex, s.exerciseId)}
+                  onSearch={() => setReplaceSearch(ex.exerciseId)}
+                  onCancel={() => setReplacing(null)}
+                />
+              )}
               {ex.backup && !logged.some((s) => s.exerciseId === ex.exerciseId) && !workout.plan.some((e) => e.exerciseId === ex.backup!.exerciseId) && (
                 <button className="outline swap-backup" onClick={() => swapToBackup(workout, ex)}>
                   {ex.swapped ? `Back to ${ex.backup.name}` : `Machine taken? Do ${ex.backup.name}`}
@@ -367,6 +408,16 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
         />
       )}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(false)} taken={new Set(workout.plan.map((e) => e.exerciseId))} />}
+      {replaceSearch && (
+        <ExercisePicker
+          onPick={(row) => {
+            const old = workout.plan.find((e) => e.exerciseId === replaceSearch)
+            if (old) void replaceExercise(workout, old, row)
+          }}
+          onClose={() => setReplaceSearch(null)}
+          taken={new Set(workout.plan.map((e) => e.exerciseId))}
+        />
+      )}
       {rest && <RestTimer rest={rest} onChange={setRest} />}
     </div>
   )

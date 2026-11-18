@@ -244,7 +244,9 @@ h2.month:first-of-type { margin-top: 4px; }
 .routine-head { display: flex; justify-content: space-between; align-items: flex-start; }
 .routine-head .link { padding: 0; }
 .routine-item { margin-bottom: 10px; }
-.routine-item-name { font-size: var(--t-18); font-weight: 600; margin-bottom: 10px; }
+.routine-item-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.routine-item-head .routine-item-name { margin-bottom: 0; }
+.routine-item-head .link { padding: 4px 2px; flex-shrink: 0; font-size: var(--t-14); }
 .routine-item-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .routine-backup { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: var(--t-14); }
 .routine-backup-name { flex: 1; min-width: 120px; }
@@ -253,6 +255,9 @@ h2.month:first-of-type { margin-top: 4px; }
 .suggestion { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: var(--t-14); }
 .suggestion:last-child { border-bottom: 0; }
 .suggestion-text { min-width: 0; }
+.replace-title { margin: 8px 0 2px; }
+.replace-more { display: flex; justify-content: space-between; align-items: center; padding-top: 4px; }
+.replace-more .link { padding: 8px 2px; font-size: var(--t-14); }
 .suggestion .link { padding: 8px 6px; font-weight: 700; flex-shrink: 0; }
 .swap-backup { margin-top: 10px; font-size: var(--t-14); }
 .stepper { display: flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-control); padding: 4px; }
@@ -326,6 +331,7 @@ h2.month:first-of-type { margin-top: 4px; }
 
 /* Floating way back to the open workout, shown on every other screen */
 .resume-fab { display: flex; flex-direction: column; align-items: center; gap: 1px; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-height) + 14px + env(safe-area-inset-bottom)); z-index: 40; max-width: calc(100% - 32px); padding: 10px 24px; border: 0; border-radius: 28px; background: var(--accent); color: var(--on-accent); font-family: var(--font-display); font-size: var(--t-16); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: var(--shadow-float); cursor: pointer; }
+.resume-fab.low { bottom: calc(12px + env(safe-area-inset-bottom)); padding: 8px 22px; } /* on a page there is no tab bar to stay above */
 .resume-fab:not(:disabled):active { transform: translateX(-50%) scale(0.98); }
 .resume-fab small { font-family: var(--font-body); font-size: var(--t-12); font-weight: 600; opacity: 0.75; }
 

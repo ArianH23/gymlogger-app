@@ -105,6 +105,11 @@ with no muscle tags gets no suggestions; **Choose** still lists everything. When
 planned exercise is left out of the session's score instead of counting as sets not done, and Claude reads it as a swap, not
 as a skipped exercise.
 
+**Replace.** To swap an exercise for another for good (not just when a machine is taken), each exercise has **Replace**: in the routine
+editor next to its name, and in a workout next to Remove exercise (only while nothing is logged for it). It lists the closest matches
+(`suggest_backups`) and a **Search all exercises** link, and the new exercise takes the old one's place with the same number of sets
+(`lib/replace.ts`). In a workout its sets start from what you did last time.
+
 ## Progress photos
 
 Body tab, **Progress photos**: a front, side and back photo with a date, and the same pose on two dates side by side. The
@@ -262,7 +267,7 @@ it at the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (496 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, the set input limits, the upload errors and the saved login),
+**Run every test.** Database: `npx supabase test db` (496 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
 `cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
 
