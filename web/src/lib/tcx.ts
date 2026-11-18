@@ -23,6 +23,9 @@ export type ParsedRun = {
   hasPositions: boolean
 }
 
+/** A TCX file says what it is: Running, Biking or Other. Biking is certainly not a run, so it is refused instead of counting for the streak and the bests. */
+export const isNotARun = (sport: string) => /^biking$/i.test(sport.trim())
+
 const tag = (xml: string, name: string) => {
   const m = new RegExp(`<${name}(?:\\s[^>]*)?>([^<]*)</${name}>`).exec(xml)
   return m ? m[1].trim() : null

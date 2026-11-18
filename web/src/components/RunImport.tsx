@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
-import { parseTcx, type ParsedRun } from '../lib/tcx'
+import { isNotARun, parseTcx, type ParsedRun } from '../lib/tcx'
 import { formatDuration, submitRun } from '../lib/runs'
 import { formatDate } from '../lib/format'
 
@@ -15,7 +15,12 @@ export default function RunImport({ onImported }: { onImported: (runId: string) 
     if (!file) return
     setError(null)
     try {
-      setParsed(parseTcx(await file.text()))
+      const run = parseTcx(await file.text())
+      if (isNotARun(run.sport)) {
+        setError(`This file is a “${run.sport}” activity, not a run, so it was not imported. Only runs are kept here.`)
+      } else {
+        setParsed(run)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read that file.')
     }

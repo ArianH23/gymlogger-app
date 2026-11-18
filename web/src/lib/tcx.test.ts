@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseTcx } from './tcx'
+import { isNotARun, parseTcx } from './tcx'
 
 // Shaped like a real Google Health export: spaces before the XML declaration, one lap, one point per second.
 const point = (time: string, lat: number, lon: number, alt: number, dist: number, hr?: number) => `
@@ -32,6 +32,18 @@ const THREE =
   point('2026-07-18T07:28:42.000+02:00', 41.402, 2.1805, 21.59, 0, 99) +
   point('2026-07-18T07:28:43.000+02:00', 41.4021, 2.1806, 21.6, 3.2, 101) +
   point('2026-07-18T07:28:45.500+02:00', 41.4023, 2.1808, 21.7, 9.9)
+
+describe('isNotARun', () => {
+  it('refuses biking, however it is written', () => {
+    expect(isNotARun('Biking')).toBe(true)
+    expect(isNotARun(' biking ')).toBe(true)
+  })
+  it('lets Running, Other and a file with no sport through (Google may not say Running)', () => {
+    expect(isNotARun('Running')).toBe(false)
+    expect(isNotARun('Other')).toBe(false)
+    expect(isNotARun('Unknown')).toBe(false)
+  })
+})
 
 describe('parseTcx', () => {
   it('reads the totals from the lap, not from the track', () => {

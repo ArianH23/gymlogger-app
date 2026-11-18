@@ -44,8 +44,8 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (35 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 482 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (36 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 485 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -137,7 +137,8 @@ OpenStreetMap's server ever blocks the app, change the tile address in `RunMap.t
 
 - **New runs:** in Google Health open the run, More, Export: that gives a TCX file. Pick it with Import run. The app only reads
   the file (`web/src/lib/tcx.ts`, with unit tests: `npm test` in `web/`); the database function `submit_run` computes
-  everything, so every source gets the same numbers.
+  everything, so every source gets the same numbers. A file that says it is a bike ride is refused; heart rates under 30 or over 250 (a sensor
+  glitch) are ignored instead of failing the import; and a file with no altitude has no climb at all rather than "0 m".
 - **The Strava history:** `importer/strava_import.py` reads an unzipped Strava export in `data/strava/` (git-ignored) and sends
   each run (GPX or TCX; walks and hikes are left out) through the same `submit_run`. Dry run by default; `--user-id <id>
   --env-file .env.cloud --apply` writes. Running it again updates, never duplicates.
@@ -261,7 +262,7 @@ it at the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (482 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, the set input limits, the upload errors and the saved login),
+**Run every test.** Database: `npx supabase test db` (485 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
 `cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
 

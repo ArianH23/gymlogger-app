@@ -2,7 +2,7 @@
 -- calendar and the week streak. Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(39);
+select plan(42);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'one@example.com'),
@@ -105,6 +105,15 @@ select public.submit_run(jsonb_build_object('source', 'google_health', 'external
 select is((select week_streak::text || ' ' || sessions_this_week::text || ' ' || rest_days::text from public.training_streak where user_id = '00000000-0000-0000-0000-0000000000a2'),
           '1 1 ' || ((now() at time zone 'Europe/Berlin')::date - ((now() - interval '1 hour') at time zone 'Europe/Berlin')::date)::text,
           'a run this week alone gives a week streak of 1 and resets the rest days');
+-- A heart-rate glitch (300 bpm, 5 bpm) does not stop the import: readings that cannot be real are left out.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$select pg_temp.run('glitch', 400, (select jsonb_agg(case when (e.p ->> 0)::numeric = 500 then jsonb_set(e.p, '{5}', '300') when (e.p ->> 0)::numeric = 600 then jsonb_set(e.p, '{5}', '5') else e.p end order by e.ord) from jsonb_array_elements(pg_temp.pts()) with ordinality as e (p, ord)))$$,
+                'a heart-rate glitch (300 bpm) does not stop the import');
+select is((select avg_hr_bpm::text || ' ' || max_hr_bpm::text from public.runs where external_id = 'glitch'), '150 150', 'the glitches count in neither the average nor the highest');
+select is((select elevation_gain_m from public.runs where external_id = 'gps'), null, 'a file with no altitude claims no climb (not 0 m)');
+reset role;
+
 -- Another user cannot see these rows (row level security).
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
 set local role authenticated;
