@@ -13,6 +13,7 @@ import { NavProvider, useNav } from './lib/nav'
 import { IconBody, IconExercises, IconHistory, IconRoutines } from './components/Icons'
 import { db } from './lib/db'
 import { syncPending } from './lib/sync'
+import { readStoredSession } from './lib/storedSession'
 
 type Tab = 'routines' | 'exercises' | 'history' | 'body'
 
@@ -67,8 +68,11 @@ function Shell() {
   }, [session])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    // With no signal an expired login cannot be renewed and the library reports no session; the login is still saved on this device,
+    // so the app stays open (the workout is on the phone) instead of showing the sign-in screen. Signing out removes the saved login.
+    const keep = (s: Session | null) => s ?? readStoredSession()
+    supabase.auth.getSession().then(({ data }) => setSession(keep(data.session)))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => setSession(event === 'SIGNED_OUT' ? null : keep(s)))
     return () => data.subscription.unsubscribe()
   }, [])
 
