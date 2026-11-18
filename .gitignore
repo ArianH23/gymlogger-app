@@ -46,3 +46,4 @@ tmp_*
 *.iml
 .DS_Store
 Thumbs.db
+/qa-report/
