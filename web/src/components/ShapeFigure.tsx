@@ -6,6 +6,8 @@ import { REGIONS } from '../lib/shape'
 // validated categorical pair for a dark surface; the fill-versus-outline difference means colour is never the only cue.
 const YOU = '#3987e5'
 const TARGET = '#d95926'
+// the arms stand a little away from the body, as in a relaxed athletic pose, so the waist and the V of the torso can be seen
+const ARM_SPREAD_CM = 9
 
 type Props = {
   you: Dims
@@ -18,8 +20,8 @@ type Props = {
 /** The front-view figure. Tap a part of the body to select it (the table below lists the same numbers). */
 export default function ShapeFigure({ you, target, heightCm, selected, onSelect }: Props) {
   const id = useId().replace(/:/g, '')
-  const yours = useMemo(() => buildFigure(you, heightCm), [you, heightCm])
-  const goal = useMemo(() => buildFigure(target, heightCm), [target, heightCm])
+  const yours = useMemo(() => buildFigure(you, heightCm, { armSpread: ARM_SPREAD_CM }), [you, heightCm])
+  const goal = useMemo(() => buildFigure(target, heightCm, { armSpread: ARM_SPREAD_CM }), [target, heightCm])
   const { y, cx, half } = yours
   const torsoHalf = Math.max(half.chest, half.hips) * 0.85
   const sel = REGIONS.find((r) => r.key === selected)
@@ -91,8 +93,8 @@ export default function ShapeFigure({ you, target, heightCm, selected, onSelect 
       {zone('calves', cx - half.hips * 0.9, half.hips * 1.8, 'Calves')}
       {(['biceps', 'forearms'] as const).map((k) => (
         <g key={k}>
-          {zone(k, cx - half.shoulders * 1.15, half.shoulders * 1.15 - torsoHalf, `Left ${k}`)}
-          {zone(k, cx + torsoHalf, half.shoulders * 1.15 - torsoHalf, `Right ${k}`)}
+          {zone(k, cx - half.shoulders * 1.6, half.shoulders * 1.6 - torsoHalf, `Left ${k}`)}
+          {zone(k, cx + torsoHalf, half.shoulders * 1.6 - torsoHalf, `Right ${k}`)}
         </g>
       ))}
     </svg>

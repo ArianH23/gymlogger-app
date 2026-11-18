@@ -58,7 +58,9 @@ export type Figure = {
   cx: number
 }
 
-export function buildFigure(m: Dims, heightCm: number): Figure {
+/** `armSpread`: how far (cm) the hands stand out from the body, growing from the shoulder down. 0 = arms hanging close, as the muscle figure draws them. */
+export function buildFigure(m: Dims, heightCm: number, opts: { armSpread?: number } = {}): Figure {
+  const spread = opts.armSpread ?? 0
   const px = (FLOOR - 24) / heightCm // the figure always fills the same height
   const y = (frac: number) => FLOOR - frac * heightCm * px
 
@@ -107,22 +109,28 @@ export function buildFigure(m: Dims, heightCm: number): Figure {
     const fw = m[side === 'l' ? 'forearm_l' : 'forearm_r'] / Math.PI / 2
     // The arm hangs from the shoulder cap and drifts away from the body, so there is daylight between arm and waist.
     const armX = sign * (sh - bw * 0.9)
+    // with a spread the whole arm turns out from the shoulder: nothing at the top of the shoulder, the full amount at the hand
+    const out = (f: number) => sign * spread * Math.min(Math.max((0.828 - f) / (0.828 - 0.456), 0), 1)
+    const arm: [number, number, number][] = [
+      [0.828, bw * 0.7, sign * -0.4], // top of the shoulder
+      [0.802, bw * 1.02, sign * 0.3], // deltoid
+      [0.765, bw * 0.97, sign * 0.8],
+      [0.72, bw, sign * 1.4], // biceps
+      [0.676, bw * 0.8, sign * 2.0],
+      [0.65, ((bw * 0.8 + fw) / 2) * 0.92, sign * 2.3], // elbow
+      [0.612, fw, sign * 2.9], // forearm
+      [0.558, fw * 0.78, sign * 3.5],
+      [0.508, fw * 0.55, sign * 4.0], // wrist
+      [0.484, fw * 0.74, sign * 4.2], // hand
+      [0.456, fw * 0.74, sign * 4.4],
+      [0.43, fw * 0.45, sign * 4.5],
+    ]
     paths.push(
       smoothClosed(
-        limb(armX, [
-          [0.828, bw * 0.7, sign * -0.4], // top of the shoulder
-          [0.802, bw * 1.02, sign * 0.3], // deltoid
-          [0.765, bw * 0.97, sign * 0.8],
-          [0.72, bw, sign * 1.4], // biceps
-          [0.676, bw * 0.8, sign * 2.0],
-          [0.65, ((bw * 0.8 + fw) / 2) * 0.92, sign * 2.3], // elbow
-          [0.612, fw, sign * 2.9], // forearm
-          [0.558, fw * 0.78, sign * 3.5],
-          [0.508, fw * 0.55, sign * 4.0], // wrist
-          [0.484, fw * 0.74, sign * 4.2], // hand
-          [0.456, fw * 0.74, sign * 4.4],
-          [0.43, fw * 0.45, sign * 4.5],
-        ]),
+        limb(
+          armX,
+          arm.map(([f, hw, off]): [number, number, number] => [f, hw, off + out(f)]),
+        ),
       ),
     )
     const tw = m[side === 'l' ? 'thigh_l' : 'thigh_r'] / Math.PI / 2
