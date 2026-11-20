@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { readStoredSession } from './storedSession'
+import { answerInTime, hasExpired, readStoredSession } from './storedSession'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -17,14 +17,26 @@ if (!url || !key) {
 // back and when it is shown again), so a failed read should fail at once.
 export const supabase = createClient(url, key, { db: { retry: false } })
 
-// With no signal an expired login cannot be renewed, and every request would wait about 25 seconds for the library to give up
-// before it fails and the screen can show its saved copy. With no signal, answer with the saved login at once instead: the
-// request then fails immediately, and the library renews the login by itself when the signal is back.
+// An expired login cannot be renewed while the server cannot be reached, and every request would wait about 25 seconds for the
+// library to give up before it fails and the screen can show its saved copy. So:
+//  - with no signal (the phone knows it), answer with the saved login at once: the request fails immediately;
+//  - with an expired login and the phone thinking it is online (weak Wi-Fi, a captive portal), give the renewal a few seconds,
+//    then answer with the saved login anyway. The renewal carries on in the background and the login is fresh again when it works.
 const getSession = supabase.auth.getSession.bind(supabase.auth)
+const RENEW_WAIT_MS = 3000
+const GIVE_UP_MS = 30_000
+let giveUpUntil = 0 // after one renewal timed out, the next requests do not each wait for it again (a screen makes several)
+if (typeof window !== 'undefined') window.addEventListener('online', () => (giveUpUntil = 0))
 supabase.auth.getSession = async () => {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    const session = readStoredSession()
-    if (session) return { data: { session }, error: null }
+  const saved = readStoredSession()
+  if (!saved) return getSession()
+  const fallback = { data: { session: saved }, error: null } as Awaited<ReturnType<typeof getSession>>
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return fallback
+  if (hasExpired(saved)) {
+    if (Date.now() < giveUpUntil) return fallback
+    const answer = await answerInTime(getSession(), fallback, RENEW_WAIT_MS)
+    if (answer === fallback) giveUpUntil = Date.now() + GIVE_UP_MS
+    return answer
   }
   return getSession()
 }

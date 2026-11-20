@@ -15,7 +15,7 @@ import { createRoutine, suggestRoutineName } from '../lib/routines'
 import { loadExerciseList, type ExerciseRow } from '../lib/exerciseList'
 import { num, targetText } from '../lib/format'
 import { removeSetRow, visibleSetNos } from '../lib/setRows'
-import { replaceInWorkout } from '../lib/replace'
+import { replaceInWorkout, withoutExerciseLayout } from '../lib/replace'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -96,6 +96,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const [picking, setPicking] = useState(false)
   const [replacing, setReplacing] = useState<string | null>(null) // the exercise whose replacements are shown under it
   const [replaceSearch, setReplaceSearch] = useState<string | null>(null) // the exercise being replaced from the full list
+  const [replaceBusy, setReplaceBusy] = useState<string | null>(null) // the exercise being replaced: its new sets are being looked up
+  const [notice, setNotice] = useState<string | null>(null) // something that did not happen, and why
   const [askFinish, setAskFinish] = useState(false)
   const [inputError, setInputError] = useState<string | null>(null) // why the last set was not logged
   const [muscles, setMuscles] = useState<Record<string, ExerciseMuscle[]>>({})
@@ -199,7 +201,9 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   async function addExercise(row: ExerciseRow) {
     setPicking(false)
     const ex = await planExercise(row)
-    await db.workouts.update(workoutId, { plan: [...workout!.plan, ex] })
+    const cur = await db.workouts.get(workoutId) // it may have changed while the last-time numbers were loading
+    if (!cur || cur.plan.some((e) => e.exerciseId === ex.exerciseId)) return
+    await db.workouts.update(workoutId, { plan: [...cur.plan, ex] })
     await touchLive(workoutId)
   }
 
@@ -207,11 +211,24 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   async function replaceExercise(w: Workout, old: PlanExercise, row: ExerciseRow) {
     setReplacing(null)
     setReplaceSearch(null)
-    if (logged!.some((s) => s.exerciseId === old.exerciseId)) return
-    const count = Math.max(1, visibleSetNos(w, old.exerciseId, old.sets.map((s) => s.setNo)).length)
-    const next = await planExercise(row, count)
-    await db.workouts.update(w.id, replaceInWorkout(w, old.exerciseId, next))
-    await touchLive(w.id)
+    const hasLogged = async () => (await db.sets.where('sessionId').equals(w.id).filter((s) => s.exerciseId === old.exerciseId).count()) > 0
+    if (await hasLogged()) return
+    setReplaceBusy(old.exerciseId)
+    try {
+      const count = Math.max(1, visibleSetNos(w, old.exerciseId, old.sets.map((s) => s.setNo)).length)
+      const next = await planExercise(row, count) // may wait for the network (the last-time numbers)
+      // A set may have been logged, or the workout changed, while that was loading: look again before changing anything.
+      const cur = await db.workouts.get(w.id)
+      if (!cur || !cur.plan.some((e) => e.exerciseId === old.exerciseId)) return
+      if (await hasLogged()) {
+        setNotice(`A set was logged on ${old.name} while ${row.name} was loading, so it was not replaced.`)
+        return
+      }
+      await db.workouts.update(w.id, replaceInWorkout(cur, old.exerciseId, next))
+      await touchLive(w.id)
+    } finally {
+      setReplaceBusy(null)
+    }
   }
 
   /** A suggestion has only an id and a name: the rest of the exercise comes from the list kept on the phone. */
@@ -223,17 +240,16 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
 
   /** Only for an exercise you haven't logged anything for yet (to swap it for another). */
   async function removeExercise(w: Workout, exerciseId: string) {
-    const { [exerciseId]: _dropped, ...extraSets } = w.extraSets
-    await db.workouts.update(w.id, { plan: w.plan.filter((e) => e.exerciseId !== exerciseId), extraSets })
+    const cur = (await db.workouts.get(w.id)) ?? w
+    await db.workouts.update(w.id, { plan: cur.plan.filter((e) => e.exerciseId !== exerciseId), ...withoutExerciseLayout(cur, exerciseId) })
     await touchLive(w.id)
   }
 
   /** Machine taken: puts the exercise's backup in its place. The planned one becomes the backup, so the same tap swaps it back. */
   async function swapToBackup(w: Workout, ex: PlanExercise) {
     if (!ex.backup) return
-    const { [ex.exerciseId]: _dropped, ...extraSets } = w.extraSets
     const swapped: PlanExercise = { ...ex.backup, backup: { ...ex, backup: null, swapped: false }, swapped: !ex.swapped }
-    await db.workouts.update(w.id, { plan: w.plan.map((e) => (e.exerciseId === ex.exerciseId ? swapped : e)), extraSets })
+    await db.workouts.update(w.id, { plan: w.plan.map((e) => (e.exerciseId === ex.exerciseId ? swapped : e)), ...withoutExerciseLayout(w, ex.exerciseId) })
     await touchLive(w.id)
   }
 
@@ -288,6 +304,14 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
         {inputError && (
           <p className="error" role="alert">
             {inputError}
+          </p>
+        )}
+        {notice && (
+          <p className="muted note" role="status">
+            {notice}{' '}
+            <button className="link" onClick={() => setNotice(null)}>
+              OK
+            </button>
           </p>
         )}
         <p className="muted">
@@ -358,8 +382,13 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                   + Set
                 </button>
                 {!logged.some((s) => s.exerciseId === ex.exerciseId) && (
-                  <button className="link" onClick={() => setReplacing(replacing === ex.exerciseId ? null : ex.exerciseId)} aria-expanded={replacing === ex.exerciseId}>
-                    Replace
+                  <button
+                    className="link"
+                    disabled={replaceBusy === ex.exerciseId}
+                    onClick={() => setReplacing(replacing === ex.exerciseId ? null : ex.exerciseId)}
+                    aria-expanded={replacing === ex.exerciseId}
+                  >
+                    {replaceBusy === ex.exerciseId ? 'Replacing…' : 'Replace'}
                   </button>
                 )}
                 {!logged.some((s) => s.exerciseId === ex.exerciseId) && (

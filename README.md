@@ -326,7 +326,9 @@ The app also **starts with no signal**: the routine, exercise, history and body 
 fraction of a second, and a workout can be started and finished. Two things make that true (`lib/supabase.ts`, `lib/storedSession.ts`): reads do
 not retry (the library's default of 3 retries made each screen wait about 7 seconds), and with no signal an expired login (it lasts an hour)
 is answered from the login saved on the phone instead of waiting about 25 seconds for a renewal that cannot happen and then showing the
-sign-in screen. When the signal is back the library renews the login by itself and the workout uploads.
+sign-in screen. When the phone thinks it is online but the server cannot be reached (weak Wi-Fi), an expired login is given 3 seconds to
+renew before the saved copy is shown, and not asked again for 30 seconds. When the signal is back the library renews the login by itself
+and the workout uploads.
 The logger refuses reps that are not a whole number from 0 to 500 and a weight outside 0 to 2000 kg (`lib/setInput.ts`), because the database would
 refuse them and a refused set stops a workout from uploading. If the server still refuses a finished workout (bad data in it), that
 workout is set aside with the reason on the routine list, with **Fix it** (reopens it to correct the set) and **Discard**; the

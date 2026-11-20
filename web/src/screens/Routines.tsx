@@ -22,7 +22,7 @@ type RoutineCard = {
 
 async function loadRoutines(): Promise<RoutineCard[]> {
   const [routines, status, plans] = await Promise.all([
-    supabase.from('routines').select('id, name, routine_exercises(count)').is('deleted_at', null).order('position'),
+    supabase.from('routines').select('id, name, routine_exercises(count)').is('deleted_at', null).is('routine_exercises.deleted_at', null).order('position'),
     // routine_status says when each routine was last done and which one is next (the one done longest ago)
     supabase.from('routine_status').select('routine_id, last_started_at, is_next'),
     supabase.from('current_plan').select('routine_id, created_by'),

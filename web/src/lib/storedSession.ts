@@ -7,6 +7,24 @@ import type { Session } from '@supabase/supabase-js'
 
 type Store = Pick<Storage, 'length' | 'key' | 'getItem'>
 
+/** True when the access token has run out, or will within a few seconds. */
+export function hasExpired(session: Session, nowMs = Date.now()): boolean {
+  return (session.expires_at ?? 0) * 1000 <= nowMs + 10_000
+}
+
+/** `real`'s answer, or `fallback` if it has not come within `waitMs` (the renewal keeps going in the background either way). */
+export async function answerInTime<T>(real: Promise<T>, fallback: T, waitMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), waitMs)
+  })
+  try {
+    return await Promise.race([real, late])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** The login saved on this device, even if its token has expired. Null when signed out (signing out removes it). */
 export function readStoredSession(store: Store = localStorage): Session | null {
   try {

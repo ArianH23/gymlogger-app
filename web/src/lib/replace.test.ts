@@ -1,8 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import type { PlanExercise } from './db'
-import { replaceInWorkout, replaceRoutineItem } from './replace'
+import { replaceInWorkout, replaceRoutineItem, withoutExerciseLayout } from './replace'
 
 const ex = (id: string, name = id): PlanExercise => ({ exerciseId: id, name, loadType: 'weighted', unilateral: false, dumbbellPair: false, sets: [], last: [] })
+
+describe('withoutExerciseLayout', () => {
+  const w = { extraSets: { a: 1, b: 2 }, removedSets: { a: [2], b: [1, 3] } }
+
+  it('forgets the added and removed sets of that exercise only', () => {
+    const r = withoutExerciseLayout(w, 'b')
+    expect(r.extraSets).toEqual({ a: 1 })
+    expect(r.removedSets).toEqual({ a: [2] })
+  })
+
+  it('works when nothing was ever removed', () => {
+    expect(withoutExerciseLayout({ extraSets: { a: 1 } }, 'a')).toEqual({ extraSets: {}, removedSets: {} })
+  })
+
+  it('does not change what it was given', () => {
+    withoutExerciseLayout(w, 'a')
+    expect(w.removedSets).toEqual({ a: [2], b: [1, 3] })
+  })
+})
 
 describe('replaceInWorkout', () => {
   const w = { plan: [ex('a'), ex('b'), ex('c')], extraSets: { b: 2, c: 1 }, removedSets: { b: [2], c: [1] } }

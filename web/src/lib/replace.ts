@@ -4,16 +4,21 @@ import type { PlanExercise, Workout } from './db'
 
 type Layout = Pick<Workout, 'plan' | 'extraSets' | 'removedSets'>
 
+/** The workout's added and removed sets without those of one exercise (it left the workout, or was swapped for another). */
+export function withoutExerciseLayout(w: Pick<Workout, 'extraSets' | 'removedSets'>, exerciseId: string): Pick<Workout, 'extraSets' | 'removedSets'> {
+  const { [exerciseId]: _extra, ...extraSets } = w.extraSets
+  const removedSets = { ...(w.removedSets ?? {}) }
+  delete removedSets[exerciseId]
+  return { extraSets, removedSets }
+}
+
 /**
  * The workout's plan with one exercise replaced by another in the same position. The old exercise's added and removed sets go with
  * it (the new one starts with the number of sets it is given). Unchanged if the new exercise is already in the workout.
  */
 export function replaceInWorkout(w: Layout, oldId: string, next: PlanExercise): Layout {
   if (next.exerciseId !== oldId && w.plan.some((e) => e.exerciseId === next.exerciseId)) return w
-  const { [oldId]: _extra, ...extraSets } = w.extraSets
-  const removedSets = { ...(w.removedSets ?? {}) }
-  delete removedSets[oldId]
-  return { plan: w.plan.map((e) => (e.exerciseId === oldId ? next : e)), extraSets, removedSets }
+  return { plan: w.plan.map((e) => (e.exerciseId === oldId ? next : e)), ...withoutExerciseLayout(w, oldId) }
 }
 
 type Item = { exerciseId: string; name: string; targetSets: number; backupId?: string | null; backupName?: string | null }
