@@ -33,6 +33,7 @@ async function syncOne(w: Workout): Promise<void> {
     started_at: w.startedAt,
     sets: sets.map(setToServer),
     deleted_set_ids: sentDeleted,
+    ...(w.replaced && Object.keys(w.replaced).length > 0 ? { replaced: w.replaced } : {}), // sent with every upload, also with a workout finished offline
     ...(sendLive ? { live: toLive(w) } : {}),
     ...(w.endedAt ? { ended_at: w.endedAt, feeling: w.feeling ?? null } : {}),
   })

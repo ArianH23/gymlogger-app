@@ -14,6 +14,7 @@ describe('isRejection', () => {
     expect(isRejection({ message: 'TypeError: NetworkError when attempting to fetch resource.' })).toBe(false)
     expect(isRejection({ code: 'PGRST301', message: 'JWT expired' })).toBe(false)
     expect(isRejection({ code: '57014', message: 'canceling statement due to statement timeout' })).toBe(false)
+    expect(isRejection({ code: '23505', message: 'duplicate key value violates unique constraint "sets_position_uq"' })).toBe(false) // two calls met: trying again works
     expect(isRejection(null)).toBe(false)
     expect(isRejection(undefined)).toBe(false)
   })

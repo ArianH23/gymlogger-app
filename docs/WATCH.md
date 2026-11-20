@@ -102,6 +102,7 @@ workout and adopt the answer. The rules (all in `supabase/migrations/..._live_wo
   with a wrong clock) counts as now, so such a device cannot win every later edit.
 - **Times are kept sane:** a start in the future is brought back to now; a finish is never in the future and at most 24 hours after the
   start. Sets that arrive after the workout was finished (a device that was offline) make the score and next plan be worked out again.
+- **One call at a time per workout** (a lock): two devices or tabs sending the same workout together no longer collide on a duplicate key.
 - **A deleted set stays deleted**, even if another device still has it and sends it again.
 - **The plan layout** (exercises, added and removed sets) is last-writer-wins.
 - **Finishing** saves the feeling, marks the plan used and makes the next plan. A finished or discarded workout disappears

@@ -21,6 +21,19 @@ export function replaceInWorkout(w: Layout, oldId: string, next: PlanExercise): 
   return { plan: w.plan.map((e) => (e.exerciseId === oldId ? next : e)), ...withoutExerciseLayout(w, oldId) }
 }
 
+/**
+ * Notes that one exercise took another's place: `{ oldId: newId }`. When the exercise that is being replaced was itself a replacement,
+ * the original planned exercise is the one that is recorded (X -> Z, then Z -> W gives X -> W), and replacing it back drops the note.
+ */
+export function recordReplacement(replaced: Record<string, string> | undefined, oldId: string, newId: string): Record<string, string> {
+  const next = { ...(replaced ?? {}) }
+  const origin = Object.keys(next).find((k) => next[k] === oldId)
+  if (origin === undefined) next[oldId] = newId
+  else if (origin === newId) delete next[origin]
+  else next[origin] = newId
+  return next
+}
+
 type Item = { exerciseId: string; name: string; targetSets: number; backupId?: string | null; backupName?: string | null }
 
 /**

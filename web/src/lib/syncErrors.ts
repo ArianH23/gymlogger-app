@@ -4,10 +4,14 @@
 
 type DbError = { code?: unknown; message?: unknown; details?: unknown }
 
-/** True when the database refused the data itself: a data error (class 22), a broken rule (class 23) or one of the function's own refusals (P0001). */
+/**
+ * True when the database refused the data itself: a data error (class 22), a broken rule (class 23) or one of the function's own
+ * refusals (P0001). A duplicate key (23505) is not one: it comes from two calls meeting at the same moment, and the same call works
+ * when it is tried again.
+ */
 export function isRejection(e: unknown): boolean {
   const code = (e as DbError | null)?.code
-  return typeof code === 'string' && /^(22|23|P0001)/.test(code)
+  return typeof code === 'string' && code !== '23505' && /^(22|23|P0001)/.test(code)
 }
 
 const KNOWN: Record<string, string> = {

@@ -1,8 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import type { PlanExercise } from './db'
-import { replaceInWorkout, replaceRoutineItem, withoutExerciseLayout } from './replace'
+import { recordReplacement, replaceInWorkout, replaceRoutineItem, withoutExerciseLayout } from './replace'
 
 const ex = (id: string, name = id): PlanExercise => ({ exerciseId: id, name, loadType: 'weighted', unilateral: false, dumbbellPair: false, sets: [], last: [] })
+
+describe('recordReplacement', () => {
+  it('notes which exercise took whose place', () => {
+    expect(recordReplacement(undefined, 'x', 'z')).toEqual({ x: 'z' })
+  })
+
+  it('keeps the other notes', () => {
+    expect(recordReplacement({ a: 'b' }, 'x', 'z')).toEqual({ a: 'b', x: 'z' })
+  })
+
+  it('follows a chain back to the planned exercise: x -> z, then z -> w is x -> w', () => {
+    expect(recordReplacement({ x: 'z' }, 'z', 'w')).toEqual({ x: 'w' })
+  })
+
+  it('drops the note when the planned exercise comes back', () => {
+    expect(recordReplacement({ x: 'z' }, 'z', 'x')).toEqual({})
+  })
+
+  it('does not change what it was given', () => {
+    const r = { x: 'z' }
+    recordReplacement(r, 'z', 'w')
+    expect(r).toEqual({ x: 'z' })
+  })
+})
 
 describe('withoutExerciseLayout', () => {
   const w = { extraSets: { a: 1, b: 2 }, removedSets: { a: [2], b: [1, 3] } }

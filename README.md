@@ -44,8 +44,8 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (40 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 500 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (41 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 510 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -108,7 +108,9 @@ as a skipped exercise.
 **Replace.** To swap an exercise for another for good (not just when a machine is taken), each exercise has **Replace**: in the routine
 editor next to its name, and in a workout next to Remove exercise (only while nothing is logged for it). It lists the closest matches
 (`suggest_backups`) and a **Search all exercises** link, and the new exercise takes the old one's place with the same number of sets
-(`lib/replace.ts`). In a workout its sets start from what you did last time.
+(`lib/replace.ts`). In a workout its sets start from what you did last time (when there is signal), and the replacement is sent with the
+workout (`sessions.replaced`): finishing records it in `session_swaps` like a "Machine taken?" swap, so the score leaves the planned
+exercise out instead of counting it as not done, and Claude does not read it as skipped.
 
 ## Progress photos
 
@@ -267,7 +269,7 @@ it at the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (500 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
+**Run every test.** Database: `npx supabase test db` (510 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
 `cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
 

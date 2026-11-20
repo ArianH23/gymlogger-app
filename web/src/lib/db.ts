@@ -44,6 +44,7 @@ export type Workout = {
   syncError?: string | null // why the server refused this workout (bad data in it); it waits, and the workouts behind it still upload
   // Sharing the open workout with other devices (see lib/sync.ts and the database function sync_workout):
   removedSets?: Record<string, number[]> // exerciseId -> set numbers taken off the list (the watch can do this)
+  replaced?: Record<string, string> // exercises replaced by another during the workout: old exercise id -> the one that took its place
   deletedSetIds?: string[] // sets deleted here that the server may still have; sent with the next sync
   liveRev?: number // bumped whenever the plan layout (exercises, extra/removed sets) changes here
   liveSyncedRev?: number // the liveRev the server has seen

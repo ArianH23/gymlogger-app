@@ -264,8 +264,9 @@ numbers: you do not need it to plan, and you never set targets from it.
 
 A planned exercise can have a backup (`routine_exercises.backup_exercise_id`): what the owner does instead when the machine
 is taken. You do not plan the backup. When it was done in place of the planned exercise, the session is listed in
-`session_swaps` (`exercise_id` = the planned one, `backup_exercise_id` = what was done). That is not a skipped exercise and
-says nothing about recovery: progress the planned exercise from its own last session, as usual. The swapped exercise's sets
+`session_swaps` (`exercise_id` = the planned one, `backup_exercise_id` = what was done). The owner can also replace an
+exercise with another during the workout (Replace): that is listed in `session_swaps` the same way, although it is not
+the routine's backup. That is not a skipped exercise and says nothing about recovery: progress the planned exercise from its own last session, as usual. The swapped exercise's sets
 are left out of that session's score.
 
 ```sql

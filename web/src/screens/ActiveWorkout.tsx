@@ -15,7 +15,7 @@ import { createRoutine, suggestRoutineName } from '../lib/routines'
 import { loadExerciseList, type ExerciseRow } from '../lib/exerciseList'
 import { num, targetText } from '../lib/format'
 import { removeSetRow, visibleSetNos } from '../lib/setRows'
-import { replaceInWorkout, withoutExerciseLayout } from '../lib/replace'
+import { recordReplacement, replaceInWorkout, withoutExerciseLayout } from '../lib/replace'
 
 type Side = 'L' | 'R' | null
 type Draft = { weight: string; reps: string }
@@ -224,7 +224,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
         setNotice(`A set was logged on ${old.name} while ${row.name} was loading, so it was not replaced.`)
         return
       }
-      await db.workouts.update(w.id, replaceInWorkout(cur, old.exerciseId, next))
+      // the replacement is also noted, so the score leaves the planned exercise out instead of counting it as not done
+      await db.workouts.update(w.id, { ...replaceInWorkout(cur, old.exerciseId, next), replaced: recordReplacement(cur.replaced, old.exerciseId, row.id) })
       await touchLive(w.id)
     } finally {
       setReplaceBusy(null)
