@@ -519,3 +519,15 @@ button.outline.quiet { margin-top: 6px; border-style: dashed; background: transp
 .cal-legend { margin-top: 10px; }
 .dialog strong { color: var(--text); }
 .hr-facts { padding: 0; margin-bottom: 8px; }
+
+/* Room below the last control while the "Back to workout" button floats at the bottom */
+.has-fab .screen { padding-bottom: calc(var(--nav-height) + 96px + env(safe-area-inset-bottom)); }
+
+/* Touch targets: the small text links and chips get a hit area of at least 44 px without moving anything (a larger invisible area around them) */
+.edit-link, .set-remove, .card-actions .link, .routine-backup .link, .routine-item-head .link, .replace-more .link, .suggestion .link, .stuck .link,
+.waiting .link, .map-toggle, .page-bar .link, .workout-bar .link, .item-actions button, .suggest-all { position: relative; }
+.edit-link::after, .set-remove::after, .card-actions .link::after, .routine-backup .link::after, .routine-item-head .link::after, .replace-more .link::after,
+.suggestion .link::after, .stuck .link::after, .waiting .link::after, .map-toggle::after, .page-bar .link::after, .workout-bar .link::after {
+  content: ''; position: absolute; left: -6px; right: -6px; top: 50%; height: 44px; transform: translateY(-50%);
+}
+.title-row .chip { min-height: 44px; }

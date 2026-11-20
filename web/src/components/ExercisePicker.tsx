@@ -16,12 +16,14 @@ export default function ExercisePicker({ onPick, onClose, taken }: Props) {
   useBackToClose(true, onClose)
   const [rows, setRows] = useState<ExerciseRow[] | null>(null)
   const [offline, setOffline] = useState(false)
+  const [noList, setNoList] = useState(false) // no signal and no saved copy of the list on this phone
   const [query, setQuery] = useState('')
 
   useEffect(() => {
     loadExerciseList().then((r) => {
       setRows(r?.rows ?? [])
       setOffline(r?.offline ?? true)
+      setNoList(r === null)
     })
   }, [])
 
@@ -37,7 +39,8 @@ export default function ExercisePicker({ onPick, onClose, taken }: Props) {
         </div>
         <h1>Add exercise</h1>
         <input className="search" type="search" placeholder="Search exercises" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
-        {offline && <p className="muted">No signal: showing the last list that was loaded.</p>}
+        {offline && !noList && <p className="muted">No signal: showing the last list that was loaded.</p>}
+        {noList && <p className="muted">No signal, and this phone has no saved list of exercises yet. Open the Exercises tab once with signal and it will be here next time.</p>}
         {!rows && <ListSkeleton rows={6} />}
         {shown.map((r) => {
           const inUse = taken?.has(r.id)
@@ -50,7 +53,7 @@ export default function ExercisePicker({ onPick, onClose, taken }: Props) {
             </button>
           )
         })}
-        {rows && shown.length === 0 && <p className="muted">No exercise matches “{query}”. Create it from the Exercises tab first.</p>}
+        {rows && !noList && shown.length === 0 && <p className="muted">No exercise matches “{query}”. Create it from the Exercises tab first.</p>}
       </div>
     </div>
   )

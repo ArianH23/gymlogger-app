@@ -17,6 +17,8 @@ export function isRejection(e: unknown): boolean {
 const KNOWN: Record<string, string> = {
   sets_reps_check: 'a set has reps below 0',
   sets_weight_kg_check: 'a set has a weight below 0',
+  sets_reps_max: 'a set has more than 500 reps',
+  sets_weight_max: 'a set has a weight above 2000 kg',
 }
 
 /** The reason in words a person can act on, instead of the database's own text. */

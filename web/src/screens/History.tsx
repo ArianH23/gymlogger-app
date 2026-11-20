@@ -194,7 +194,15 @@ export default function History() {
       {show !== 'runs' && !more && items.length === 0 && !loading && <p className="muted">No sessions yet.</p>}
       {show === 'runs' && runs !== null && runs.length === 0 && <p className="muted">No runs yet. Import one from Google Health.</p>}
 
-      <button className="link" onClick={() => supabase.auth.signOut()}>
+      <button
+        className="link"
+        onClick={() => {
+          const n = waiting?.length ?? 0
+          // the workouts waiting to upload stay on the phone for this account, but another account signing in would not see them: they are cleared
+          if (n > 0 && !window.confirm(`${n} ${n === 1 ? 'workout is' : 'workouts are'} still waiting to upload. Sign in with this account again to upload ${n === 1 ? 'it' : 'them'}; if another account signs in on this phone first, ${n === 1 ? 'it is' : 'they are'} discarded. Sign out anyway?`)) return
+          void supabase.auth.signOut()
+        }}
+      >
         Sign out
       </button>
     </>

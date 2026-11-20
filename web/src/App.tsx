@@ -14,6 +14,7 @@ import { IconBody, IconExercises, IconHistory, IconRoutines } from './components
 import { db } from './lib/db'
 import { syncPending } from './lib/sync'
 import { readStoredSession } from './lib/storedSession'
+import { adoptUser } from './lib/localData'
 
 type Tab = 'routines' | 'exercises' | 'history' | 'body'
 
@@ -45,6 +46,13 @@ function Shell() {
     return () => clearInterval(t)
   }, [unfinishedId])
 
+  // While the "Back to workout" button floats at the bottom, the screens keep room below their last control (see .has-fab).
+  const fabShown = !!unfinished && !(openWorkout && stack.length === 0)
+  useEffect(() => {
+    document.body.classList.toggle('has-fab', fabShown)
+    return () => document.body.classList.remove('has-fab')
+  }, [fabShown])
+
   // Reopening the app mid-workout takes you straight back to it.
   useEffect(() => {
     db.workouts.filter((w) => !w.endedAt).first().then((w) => w && setOpenWorkout(w.id))
@@ -71,8 +79,15 @@ function Shell() {
     // With no signal an expired login cannot be renewed and the library reports no session; the login is still saved on this device,
     // so the app stays open (the workout is on the phone) instead of showing the sign-in screen. Signing out removes the saved login.
     const keep = (s: Session | null) => s ?? readStoredSession()
-    supabase.auth.getSession().then(({ data }) => setSession(keep(data.session)))
-    const { data } = supabase.auth.onAuthStateChange((event, s) => setSession(event === 'SIGNED_OUT' ? null : keep(s)))
+    // a different account than last time starts with none of the previous one's workouts and saved lists, before anything uploads
+    const accept = (s: Session | null) => {
+      if (!s) return setSession(null)
+      adoptUser(s.user.id)
+        .catch(() => undefined)
+        .then(() => setSession(s))
+    }
+    supabase.auth.getSession().then(({ data }) => accept(keep(data.session)))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => (event === 'SIGNED_OUT' ? setSession(null) : accept(keep(s))))
     return () => data.subscription.unsubscribe()
   }, [])
 

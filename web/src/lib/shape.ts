@@ -31,10 +31,10 @@ export const REGIONS: Region[] = [
   { key: 'waist', label: 'Waist', metrics: ['waist_cm'], y: [0.615, 0.69] },
   { key: 'abdomen', label: 'Abdomen', metrics: ['abdomen_cm'], y: [0.565, 0.615] },
   { key: 'hips', label: 'Hips', metrics: ['hips_cm'], y: [0.485, 0.565] },
-  { key: 'biceps', label: 'Biceps', metrics: ['bicep_l_cm', 'bicep_r_cm'], y: [0.68, 0.78] },
-  { key: 'forearms', label: 'Forearms', metrics: ['forearm_l_cm', 'forearm_r_cm'], y: [0.5, 0.62] },
-  { key: 'thighs', label: 'Thighs', metrics: ['thigh_l_cm', 'thigh_r_cm'], y: [0.31, 0.485] },
-  { key: 'calves', label: 'Calves', metrics: ['calf_l_cm', 'calf_r_cm'], y: [0.09, 0.27] },
+  { key: 'biceps', label: 'Biceps', metrics: ['bicep_l_cm', 'bicep_r_cm'], y: [0.65, 0.78] },
+  { key: 'forearms', label: 'Forearms', metrics: ['forearm_l_cm', 'forearm_r_cm'], y: [0.43, 0.65] },
+  { key: 'thighs', label: 'Thighs', metrics: ['thigh_l_cm', 'thigh_r_cm'], y: [0.29, 0.485] },
+  { key: 'calves', label: 'Calves', metrics: ['calf_l_cm', 'calf_r_cm'], y: [0.09, 0.29] },
 ]
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length

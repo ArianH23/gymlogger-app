@@ -26,6 +26,8 @@ describe('describeRejection', () => {
     expect(reps).toContain('reps below 0')
     expect(reps).not.toContain('sets_reps_check')
     expect(describeRejection({ code: '23514', message: 'violates check constraint "sets_weight_kg_check"' })).toContain('weight below 0')
+    expect(describeRejection({ code: '23514', message: 'violates check constraint "sets_reps_max"' })).toContain('more than 500 reps')
+    expect(describeRejection({ code: '23514', message: 'violates check constraint "sets_weight_max"' })).toContain('above 2000 kg')
   })
 
   it('explains a number that does not fit or is not a number', () => {

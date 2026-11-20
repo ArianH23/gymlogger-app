@@ -36,7 +36,8 @@ export default function Exercises() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      {offline && <p className="muted">No signal: showing the last list that was loaded.</p>}
+      {offline && rows && <p className="muted">No signal: showing the last list that was loaded.</p>}
+      {offline && !rows && <p className="muted">No signal, and this phone has no saved list of exercises yet. It will be here next time you open this tab with signal.</p>}
       {!rows && !offline && <ListSkeleton rows={8} />}
       {shown.map((r) => (
         <button className="card list-item" key={r.id} onClick={() => push({ type: 'exercise', id: r.id })}>
