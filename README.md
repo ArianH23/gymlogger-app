@@ -44,8 +44,8 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (41 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 510 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (42 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 523 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -269,7 +269,7 @@ it at the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (510 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
+**Run every test.** Database: `npx supabase test db` (523 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
 `cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
 
@@ -331,8 +331,10 @@ is answered from the login saved on the phone instead of waiting about 25 second
 sign-in screen. When the phone thinks it is online but the server cannot be reached (weak Wi-Fi), an expired login is given 3 seconds to
 renew before the saved copy is shown, and not asked again for 30 seconds. When the signal is back the library renews the login by itself
 and the workout uploads.
-The logger refuses reps that are not a whole number from 0 to 500 and a weight outside 0 to 2000 kg (`lib/setInput.ts`), because the database would
-refuse them and a refused set stops a workout from uploading. If the server still refuses a finished workout (bad data in it), that
+Signing out keeps the workouts waiting to upload for the same account (the sign-out button asks first if there are any), but a different
+account signing in on the phone starts with none of the previous one's workouts and saved lists (`lib/localData.ts`).
+The logger refuses reps that are not a whole number from 0 to 500 and a weight outside 0 to 2000 kg (`lib/setInput.ts`), and the database enforces
+the same limits (and lengths for names and titles), because a refused set stops a workout from uploading. If the server still refuses a finished workout (bad data in it), that
 workout is set aside with the reason on the routine list, with **Fix it** (reopens it to correct the set) and **Discard**; the
 workouts behind it upload as usual. No signal, a signed-out session or a slow server only make a workout wait (`lib/syncErrors.ts`).
 
@@ -370,8 +372,8 @@ and scratch files out. Comments in it must be on their own line (a `#` after a p
 - Android Studio's Java is used for builds (`build.ps1` sets it); the watch build needs Android SDK platform 37 and Gradle 9.8.
 - Wear OS: a watch app that keeps the screen on drains the battery, so the rest alarm is a real Android alarm and the
   screen sleeps normally; the "workout going on" counter uses the time-since-boot clock, not a calendar time.
-- Routine and exercise names are unique only among the ones that are not deleted (a partial unique index), so a name is free again
-  after a delete. That means an upsert cannot use the name as its conflict target (the Hevy importer adds new exercises by id), and any
+- Routine and exercise names are unique only among the ones that are not deleted (a partial unique index, ignoring case and spaces), so a
+  name is free again after a delete. That means an upsert cannot use the name as its conflict target (the Hevy importer adds new exercises by id), and any
   lookup by name must skip deleted rows. Deleting an exercise is `delete_exercise`: soft, refused while a routine uses it.
 - Tests that read whole tables must clear their own slate first (the local database keeps what you did by hand).
 - Scheduled tasks are a research preview at Anthropic: the automatic plan keeps working if that part breaks.

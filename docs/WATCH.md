@@ -158,7 +158,7 @@ only shows on the real watch.
 
 ## Tests and checks
 
-- `npx supabase test db`: the database rules (pairing, `sync_workout`, scores, plans...), 240 checks.
+- `npx supabase test db`: the database rules (pairing, `sync_workout`, scores, plans...), 523 checks.
 - `scripts/watch_pairing_check.py` (needs `npx supabase functions serve --no-verify-jwt`): plays phone and watch over HTTP
   through the whole pairing, including wrong codes and reuse.
 - `scripts/watch_api_check.py`: plays an older, simpler watch (plain upserts and `finish_session`) to prove a client other
