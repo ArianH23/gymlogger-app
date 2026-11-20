@@ -170,6 +170,9 @@ order by week_start desc
 limit 8;
 ```
 
+`volume_kg` is weight x reps over the working sets of weighted exercises: bodyweight exercises and assisted ones (assisted
+chin-up: the weight is the help you were given) add nothing to it, so do not read a week without them as a smaller week.
+
 All the body numbers at once, each metric's latest value against the check-in from about four weeks earlier
 (`earlier_value` is null until there is a check-in at least 25 days older). It includes the **calculated** rows
 (`grp = 'Calculated'`): shoulders / waist, waist / height, lean mass and a body fat estimate from the tape:

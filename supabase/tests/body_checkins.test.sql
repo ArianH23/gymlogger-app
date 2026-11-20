@@ -48,7 +48,7 @@ $$;
 
 select is((pg_temp.wk('2026-01-05')).sessions, 1::bigint, 'weekly overview: one session that week');
 select is((pg_temp.wk('2026-01-05')).sets, 3::bigint, 'weekly overview: 3 working sets');
-select is((pg_temp.wk('2026-01-05')).volume_kg, 880::numeric, 'weekly overview: volume = 40x8 + 40x5 + 45x8 = 880');
+select is((pg_temp.wk('2026-01-05')).volume_kg, 520::numeric, 'weekly overview: volume = 40x8 + 40x5 = 520 (the assisted chin-up adds none)');
 select is((pg_temp.wk('2026-01-05')).bodyweight_kg, 70.50, 'weekly overview: average bodyweight of the week');
 select is((pg_temp.wk('2026-01-05')).waist_cm, 76.0, 'weekly overview: averages skip missing values');
 select is((pg_temp.wk('2026-01-05')).sleep_hours, 6.5, 'weekly overview: average sleep');

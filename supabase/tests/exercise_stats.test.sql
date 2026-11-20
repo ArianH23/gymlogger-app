@@ -1,7 +1,7 @@
 -- Tests for the exercise statistics views. Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(23);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'test@example.com');
 insert into public.exercises (id, user_id, name, load_type, unilateral) values
@@ -55,6 +55,8 @@ select is(round((pg_temp.st('d2','e1')).est_1rm_kg, 2), 54.27, '1RM of the next 
 
 select is((pg_temp.st('d2','e2')).best_weight_kg, 45::numeric, 'assisted: lowest assistance is the best');
 select is((pg_temp.st('d1','e2')).est_1rm_kg, null::numeric, 'assisted: no 1RM');
+select is((pg_temp.st('d1','e2')).session_volume_kg, null::numeric, 'assisted: no volume (the weight is help, not load lifted)');
+select is((pg_temp.st('d1','e2')).best_set_volume_kg, null::numeric, 'assisted: no best set volume either');
 
 select is((pg_temp.st('d1','e3')).best_reps, 10, 'left/right: the lower side counts');
 select is((pg_temp.st('d1','e3')).session_volume_kg, 75::numeric, 'left/right: volume uses the lower side (7.5 x 10)');
