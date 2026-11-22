@@ -225,7 +225,7 @@ order by week_start desc, ord;
 
 The owner's runs. You never plan runs (they are spontaneous), but they cost leg recovery: check them before deciding leg
 work, and mention it in the plan notes when a hard or long run is close to the session (`pace_s_per_km` is moving seconds per
-km; `run_bests` has the fastest 5 km, fastest kilometre and longest run):
+km; `run_bests` has the fastest 5 km and 10 km (when a run is long enough), fastest kilometre and longest run):
 
 ```sql
 select day, title, distance_km, moving_s, pace_s_per_km, avg_hr_bpm, current_date - day as days_ago

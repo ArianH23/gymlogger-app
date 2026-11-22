@@ -28,7 +28,7 @@ export type TrackPoint = { t: number; lat: number | null; lon: number | null; al
 export type RunDetail = { run: RunRow; splits: RunSplit[]; track: TrackPoint[] }
 
 export type RunWeek = { weekStart: string; runs: number; distanceKm: number; paceSPerKm: number }
-export type RunBest = { kind: 'best_1k' | 'best_5k' | 'longest'; value: number; runId: string; day: string }
+export type RunBest = { kind: 'best_1k' | 'best_5k' | 'best_10k' | 'longest'; value: number; runId: string; day: string }
 export type RunTrends = { weeks: RunWeek[]; bests: RunBest[] }
 
 const numOrNull = (v: unknown) => (v === null || v === undefined ? null : Number(v))

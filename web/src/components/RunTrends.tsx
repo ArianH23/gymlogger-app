@@ -4,8 +4,8 @@ import { useNav } from '../lib/nav'
 import { formatDuration, formatPace, loadRunTrends, type RunBest, type RunTrends as Trends } from '../lib/runs'
 import { formatDayMonth } from '../lib/format'
 
-const BEST_LABEL: Record<RunBest['kind'], string> = { best_5k: 'Fastest 5 km', best_1k: 'Fastest kilometre', longest: 'Longest run' }
-const ORDER: RunBest['kind'][] = ['best_5k', 'best_1k', 'longest']
+const BEST_LABEL: Record<RunBest['kind'], string> = { best_5k: 'Fastest 5 km', best_10k: 'Fastest 10 km', best_1k: 'Fastest kilometre', longest: 'Longest run' }
+const ORDER: RunBest['kind'][] = ['best_5k', 'best_10k', 'best_1k', 'longest']
 
 const bestValue = (b: RunBest) => (b.kind === 'longest' ? `${(b.value / 1000).toFixed(2)} km` : b.kind === 'best_1k' ? `${formatPace(b.value)} /km` : formatDuration(b.value))
 

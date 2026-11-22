@@ -2,7 +2,7 @@
 -- calendar and the week streak. Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(44);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'one@example.com'),
@@ -105,6 +105,14 @@ select public.submit_run(jsonb_build_object('source', 'google_health', 'external
 select is((select week_streak::text || ' ' || sessions_this_week::text || ' ' || rest_days::text from public.training_streak where user_id = '00000000-0000-0000-0000-0000000000a2'),
           '1 1 ' || ((now() at time zone 'Europe/Berlin')::date - ((now() - interval '1 hour') at time zone 'Europe/Berlin')::date)::text,
           'a run this week alone gives a week streak of 1 and resets the rest days');
+-- The fastest 10 km: none until a run has ten full kilometres, then the best ten in a row.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.run_bests where kind = 'best_10k'), 0::bigint, 'no fastest 10 km while no run has ten full kilometres');
+select pg_temp.run('long', 500, pg_temp.pts(false, 0, 2.5, 4800)); -- 12 km at 2.5 m/s: every kilometre takes 400 s
+select is((select value from public.run_bests where kind = 'best_10k'), 4000::numeric, 'a 12 km run at 400 s per km gives a fastest 10 km of 4000 s');
+reset role;
+
 -- A heart-rate glitch (300 bpm, 5 bpm) does not stop the import: readings that cannot be real are left out.
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
 set local role authenticated;

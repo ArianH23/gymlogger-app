@@ -44,8 +44,8 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 
 | Path | What |
 |---|---|
-| `supabase/migrations/` | the database, in order (42 files). Never edit an applied migration: add a new one |
-| `supabase/tests/` | pgTAP tests, 523 checks, run with `npx supabase test db` |
+| `supabase/migrations/` | the database, in order (43 files). Never edit an applied migration: add a new one |
+| `supabase/tests/` | pgTAP tests, 525 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
 | `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
@@ -128,7 +128,7 @@ It needs signal (photos are not kept on the phone).
 ## Runs
 
 Runs are tracked next to the gym sessions, but nothing plans them. History has a switch (All, Workouts, Runs); the Runs view
-shows the distance per week, your bests (fastest 5 km, fastest kilometre, longest run) and an **Import run** button. A run page
+shows the distance per week, your bests (fastest 5 km and 10 km, fastest kilometre, longest run) and an **Import run** button. A run page
 shows distance, moving time and pace, the route on a real map, the pace of each kilometre, and altitude and heart rate along
 the way when the file has them. Runs are on the calendar in blue and count for the week streak and the rest days.
 
@@ -274,7 +274,7 @@ it at the local database (below).
 locally with `npx supabase migration up` (the tests do not apply migrations).
 For the pairing function locally: `npx supabase functions serve --no-verify-jwt`, then `scripts/watch_pairing_check.py`.
 
-**Run every test.** Database: `npx supabase test db` (523 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
+**Run every test.** Database: `npx supabase test db` (525 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
 `cd watch && .\build.ps1 testDebugUnitTest` (31 tests). GitHub runs all of them on every push.
 

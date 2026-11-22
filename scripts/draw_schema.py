@@ -67,7 +67,7 @@ VIEWS = [
     ("run_summary", "one row per run: distance, moving time, pace, heart rate"),
     ("weekly_runs", "runs per week: count, km, time, pace"),
     ("monthly_runs", "runs per month: count, km, time, pace"),
-    ("run_bests", "fastest 5 km, fastest kilometre, longest run"),
+    ("run_bests", "fastest 5 km and 10 km, fastest kilometre, longest run"),
     ("training_streak", "week streak, best streak, rest days since the last session, sessions this week"),
     ("session_muscles", "per session and muscle: weighted sets and share of the session"),
     ("weekly_muscles", "the same muscle sets, summed per week"),
