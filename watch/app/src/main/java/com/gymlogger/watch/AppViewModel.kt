@@ -21,6 +21,7 @@ import com.gymlogger.watch.data.Row
 import com.gymlogger.watch.data.Sent
 import com.gymlogger.watch.data.Workout
 import com.gymlogger.watch.data.WorkoutStore
+import com.gymlogger.watch.data.addSetRow
 import com.gymlogger.watch.data.adoptRemote
 import com.gymlogger.watch.data.exercise
 import com.gymlogger.watch.data.liveChanged
@@ -412,7 +413,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun addSet(ex: PlanExercise) {
-        change { w -> w.copy(extraSets = w.extraSets + (ex.exerciseId to (w.extraSets[ex.exerciseId] ?: 0) + 1), liveRev = w.liveRev + 1) }
+        change { w -> w.addSetRow(ex.exerciseId) }
     }
 
     /** Ends the workout (with how it felt, 1 to 5, or null) and queues it for the server. It stays saved here until the server confirms. */

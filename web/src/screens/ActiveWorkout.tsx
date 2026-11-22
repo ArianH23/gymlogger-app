@@ -14,7 +14,8 @@ import { loadExerciseMuscles, type ExerciseMuscle } from '../lib/muscles'
 import { createRoutine, suggestRoutineName } from '../lib/routines'
 import { loadExerciseList, type ExerciseRow } from '../lib/exerciseList'
 import { num, targetText } from '../lib/format'
-import { removeSetRow, visibleSetNos } from '../lib/setRows'
+import { addSetRow, removeSetRow, visibleSetNos } from '../lib/setRows'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { recordReplacement, replaceInWorkout, withoutExerciseLayout } from '../lib/replace'
 
 type Side = 'L' | 'R' | null
@@ -98,6 +99,8 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
   const [replaceSearch, setReplaceSearch] = useState<string | null>(null) // the exercise being replaced from the full list
   const [replaceBusy, setReplaceBusy] = useState<string | null>(null) // the exercise being replaced: its new sets are being looked up
   const [notice, setNotice] = useState<string | null>(null) // something that did not happen, and why
+  const [askRemoveSet, setAskRemoveSet] = useState<{ ex: PlanExercise; setNo: number } | null>(null) // a set that is about to be taken off, waiting for a yes
+  const [askRemoveExercise, setAskRemoveExercise] = useState<PlanExercise | null>(null) // an exercise that is about to be taken off, waiting for a yes
   const [askFinish, setAskFinish] = useState(false)
   const [inputError, setInputError] = useState<string | null>(null) // why the last set was not logged
   const [muscles, setMuscles] = useState<Record<string, ExerciseMuscle[]>>({})
@@ -156,8 +159,10 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
     scheduleSync() // shared with the other devices within a moment (and saved here already)
   }
 
+  /** "+ Set": a set that was taken off comes back first, with its plan; otherwise an extra set is added at the end. */
   async function addSet(w: Workout, exerciseId: string) {
-    await db.workouts.update(w.id, { extraSets: { ...w.extraSets, [exerciseId]: (w.extraSets[exerciseId] ?? 0) + 1 } })
+    const after = addSetRow(w, exerciseId)
+    await db.workouts.update(w.id, { extraSets: after.extraSets, removedSets: after.removedSets })
     await touchLive(w.id)
   }
 
@@ -350,7 +355,7 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                         <div className="set-target">Set {setNo} · extra</div>
                       )}
                       {!logged.some((s) => s.exerciseId === ex.exerciseId && s.setNo === setNo) && (
-                        <button className="link danger set-remove" onClick={() => removeSet(workout, ex, setNo)} aria-label={`Remove set ${setNo}`}>
+                        <button className="link danger set-remove" onClick={() => setAskRemoveSet({ ex, setNo })} aria-label={`Remove set ${setNo}`}>
                           Remove
                         </button>
                       )}
@@ -393,11 +398,17 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
                   </button>
                 )}
                 {!logged.some((s) => s.exerciseId === ex.exerciseId) && (
-                  <button className="link danger" onClick={() => removeExercise(workout, ex.exerciseId)}>
+                  <button className="link danger" onClick={() => setAskRemoveExercise(ex)}>
                     Remove exercise
                   </button>
                 )}
               </div>
+              {(workout.removedSets?.[ex.exerciseId]?.length ?? 0) > 0 && (
+                <p className="muted note">
+                  {workout.removedSets![ex.exerciseId].length === 1 ? 'Set' : 'Sets'} {[...workout.removedSets![ex.exerciseId]].sort((a, b) => a - b).join(', ')} removed. + Set brings{' '}
+                  {workout.removedSets![ex.exerciseId].length === 1 ? 'it' : 'the first'} back, with its plan.
+                </p>
+              )}
               {replacing === ex.exerciseId && !logged.some((s) => s.exerciseId === ex.exerciseId) && (
                 <ReplacePanel
                   exerciseId={ex.exerciseId}
@@ -438,6 +449,41 @@ export default function ActiveWorkout({ workoutId, onExit }: { workoutId: string
         />
       )}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(false)} taken={new Set(workout.plan.map((e) => e.exerciseId))} />}
+      {askRemoveSet && (
+        <ConfirmDialog
+          title={`Remove set ${askRemoveSet.setNo}?`}
+          confirmLabel="Remove"
+          onCancel={() => setAskRemoveSet(null)}
+          onConfirm={() => {
+            const a = askRemoveSet
+            setAskRemoveSet(null)
+            void removeSet(workout, a.ex, a.setNo)
+          }}
+        >
+          <p>
+            {askRemoveSet.ex.name}, set {askRemoveSet.setNo}
+            {askRemoveSet.ex.sets.find((s) => s.setNo === askRemoveSet.setNo) ? ` (plan ${targetText(askRemoveSet.ex.sets.find((s) => s.setNo === askRemoveSet.setNo)!, askRemoveSet.ex) || 'no target'})` : ' (an extra set)'}
+            . It comes back, with its plan, when you tap + Set.
+          </p>
+        </ConfirmDialog>
+      )}
+      {askRemoveExercise && (
+        <ConfirmDialog
+          title="Remove this exercise?"
+          confirmLabel="Remove"
+          onCancel={() => setAskRemoveExercise(null)}
+          onConfirm={() => {
+            const a = askRemoveExercise
+            setAskRemoveExercise(null)
+            void removeExercise(workout, a.exerciseId)
+          }}
+        >
+          <p>
+            {askRemoveExercise.name} leaves this workout, with its {askRemoveExercise.sets.length} planned {askRemoveExercise.sets.length === 1 ? 'set' : 'sets'}. To put another exercise
+            in its place instead, use Replace. You can add it again with + Add exercise.
+          </p>
+        </ConfirmDialog>
+      )}
       {replaceSearch && (
         <ExercisePicker
           onPick={(row) => {

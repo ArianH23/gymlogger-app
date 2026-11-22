@@ -305,6 +305,15 @@ fun EditorScreen(
     val plan = ex.planSet(row.setNo)?.targetText()
     val last = ex.lastText(row)
 
+    // Removing a set and unlogging one need a second tap ("Sure?"), like discarding a workout: they sit right next to Log.
+    var sure by remember { mutableStateOf(false) }
+    LaunchedEffect(sure) {
+        if (sure) {
+            delay(3000)
+            sure = false
+        }
+    }
+
     Column(Modifier.fillMaxSize().padding(top = 22.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(ex.name, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 40.dp))
         LayoutRow(verticalAlignment = Alignment.CenterVertically) {
@@ -349,9 +358,9 @@ fun EditorScreen(
                 modifier = Modifier.width(70.dp).height(42.dp),
             ) { Text(if (logged != null) "Save" else "Log") }
             FilledTonalButton(
-                onClick = if (logged != null) onDelete else onRemove,
-                modifier = Modifier.width(if (logged != null) 84.dp else 46.dp).height(42.dp),
-            ) { Text(if (logged != null) "Unlog" else "✕") }
+                onClick = { if (sure) { sure = false; if (logged != null) onDelete() else onRemove() } else sure = true },
+                modifier = Modifier.width(if (logged != null || sure) 84.dp else 46.dp).height(42.dp),
+            ) { Text(if (sure) "Sure?" else if (logged != null) "Unlog" else "✕") }
         }
     }
 }

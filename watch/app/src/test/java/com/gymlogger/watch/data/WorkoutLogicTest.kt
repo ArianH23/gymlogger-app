@@ -18,6 +18,39 @@ class WorkoutLogicTest {
     private fun logged(ex: String, setNo: Int, reps: Int, side: String? = null) =
         LoggedSet("$ex-$setNo-$side", ex, setNo, side, 40.0, reps, "2026-01-01T10:0$setNo:00Z")
 
+    // ---- "+ Set": a removed set comes back with its plan
+
+    @Test fun plusSetAddsAnExtraSetWhenNothingWasRemoved() {
+        val w = workout(exercise("press")).addSetRow("press")
+        assertEquals(1, w.extraSets["press"])
+        assertEquals(listOf(1, 2, 3, 4), w.rows(w.plan[0]).map { it.setNo })
+    }
+
+    @Test fun plusSetBringsARemovedPlannedSetBackWithItsPlan() {
+        val gone = workout(exercise("press")).copy(removedSets = mapOf("press" to listOf(2)))
+        assertEquals(listOf(1, 3), gone.rows(gone.plan[0]).map { it.setNo })
+        val back = gone.addSetRow("press")
+        assertEquals(listOf(1, 2, 3), back.rows(back.plan[0]).map { it.setNo })
+        assertEquals(null, back.extraSets["press"]) // not a plain extra set
+        assertEquals(null, back.removedSets["press"])
+        assertEquals(40.0, back.plan[0].planSet(2)?.targetWeightKg) // set 2 still has its plan
+        assertEquals(gone.liveRev + 1, back.liveRev) // so the phone gets the change
+    }
+
+    @Test fun plusSetBringsBackTheLowestRemovedNumberFirst() {
+        val gone = workout(exercise("press")).copy(removedSets = mapOf("press" to listOf(3, 1)))
+        val one = gone.addSetRow("press")
+        assertEquals(listOf(1, 2), one.rows(one.plan[0]).map { it.setNo })
+        val two = one.addSetRow("press")
+        assertEquals(listOf(1, 2, 3), two.rows(two.plan[0]).map { it.setNo })
+        assertEquals(listOf(1, 2, 3, 4), two.addSetRow("press").rows(two.plan[0]).map { it.setNo }) // then extra sets again
+    }
+
+    @Test fun plusSetLeavesAnotherExercisesRemovedSetsAlone() {
+        val w = workout(exercise("press"), exercise("row")).copy(removedSets = mapOf("row" to listOf(1), "press" to listOf(2)))
+        assertEquals(mapOf("row" to listOf(1)), w.addSetRow("press").removedSets)
+    }
+
     // ---- machine taken: swapping an exercise for its backup
 
     @Test fun swappingPutsTheBackupInTheSamePlace() {

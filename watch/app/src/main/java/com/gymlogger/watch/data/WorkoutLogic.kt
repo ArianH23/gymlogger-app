@@ -20,6 +20,21 @@ fun Workout.rows(ex: PlanExercise): List<Row> {
     return (planned + extra).filter { it !in removed }.distinct().sorted().flatMap { n -> sides.map { Row(n, it) } }
 }
 
+/**
+ * "+ Set": a set that was taken off comes back first (the lowest number), with its plan (the weight and reps to aim for), because a
+ * plain extra set has no plan. With nothing taken off, one extra set is added at the end. The same as the phone's addSetRow.
+ */
+fun Workout.addSetRow(exerciseId: String): Workout {
+    val removed = removedSets[exerciseId].orEmpty()
+    if (removed.isNotEmpty()) {
+        val back = removed.min()
+        val rest = removed.filter { it != back }
+        val next = if (rest.isEmpty()) removedSets - exerciseId else removedSets + (exerciseId to rest)
+        return copy(removedSets = next, liveRev = liveRev + 1)
+    }
+    return copy(extraSets = extraSets + (exerciseId to (extraSets[exerciseId] ?: 0) + 1), liveRev = liveRev + 1)
+}
+
 fun Workout.loggedAt(ex: PlanExercise, row: Row): LoggedSet? =
     sets.firstOrNull { it.exerciseId == ex.exerciseId && it.setNo == row.setNo && it.side == row.side }
 
