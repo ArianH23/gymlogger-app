@@ -112,6 +112,11 @@ editor next to its name, and in a workout next to Remove exercise (only while no
 workout (`sessions.replaced`): finishing records it in `session_swaps` like a "Machine taken?" swap, so the score leaves the planned
 exercise out instead of counting it as not done, and Claude does not read it as skipped.
 
+**Taking things off a workout.** Removing a set, or an exercise (phone), asks first; on the watch the set's ✕ and **Unlog** need a second tap
+("Sure?"). A set taken off is not lost: **+ Set** brings the lowest removed set back with its plan (the weight and reps to aim for)
+before it adds a new extra set, and the exercise card says which sets are off (`addSetRow` in `lib/setRows.ts`, the same rule in
+`WorkoutLogic.kt` on the watch).
+
 ## Progress photos
 
 Body tab, **Progress photos**: a front, side and back photo with a date, and the same pose on two dates side by side. The
@@ -271,7 +276,7 @@ For the pairing function locally: `npx supabase functions serve --no-verify-jwt`
 
 **Run every test.** Database: `npx supabase test db` (523 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
-`cd watch && .\build.ps1 testDebugUnitTest` (25 tests). GitHub runs all of them on every push.
+`cd watch && .\build.ps1 testDebugUnitTest` (29 tests). GitHub runs all of them on every push.
 
 **Change the database.** Add a new file in `supabase/migrations/`, add a pgTAP test, run `npx supabase migration up`
 and `npx supabase test db`. Publishing is done from GitHub, not from this PC (next paragraph).

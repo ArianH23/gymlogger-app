@@ -35,7 +35,9 @@ It was built and tested for a Wear OS watch (Wi-Fi), Wear OS 6 and up (minSdk 33
    are reversed (more reps = less assistance); bodyweight exercises get no hint; with a single target instead of a range the margin is
    two reps. The rule is `hintFor` in `data/WorkoutLogic.kt`, on the watch so it works without signal, and it has unit tests
    (`watchuild.ps1 testDebugUnitTest`).
-   For a logged set the buttons are **Save** and **Unlog** (clears it, the row stays); for an empty one **✕** takes the row off.
+   For a logged set the buttons are **Save** and **Unlog** (clears it, the row stays); for an empty one **✕** takes the row off. **✕** and
+   **Unlog** need a second tap (the button turns into **Sure?** for 3 seconds), like Discard. A row taken off is not lost: **+ Set** on the
+   exercise screen brings the lowest removed row back with its plan before it adds a new extra set.
    Left/right exercises have an L and an R row.
 5. **Rest timer** after each completed set (for left/right: after both sides), by the top of the rep range (150 s up to 10,
    90 s up to 15, else 60 s). Tap the rest line for the rest screen: **-15 / +15 / Skip / Alarm on-off**. The vibration is an
