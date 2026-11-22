@@ -29,6 +29,7 @@ import com.gymlogger.watch.data.loggedAt
 import com.gymlogger.watch.data.openWorkout
 import com.gymlogger.watch.data.planSet
 import com.gymlogger.watch.data.reconcile
+import com.gymlogger.watch.data.restIsOver
 import com.gymlogger.watch.data.restSeconds
 import com.gymlogger.watch.data.swapToBackup
 import com.gymlogger.watch.data.routines
@@ -480,6 +481,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun skipRest() = cancelRest()
+
+    /**
+     * A tap on the rest chip. While the rest runs it opens the timer's screen. Once the rest is over (the gold "Rest over") there is
+     * nothing left to control, so the tap just clears the chip and the plan and last-time numbers it was covering come back.
+     */
+    fun restChipTapped() {
+        if (restIsOver(restEndsAt, System.currentTimeMillis())) cancelRest() else openRest()
+    }
 
     /** Opens the rest timer's screen (only while resting). */
     fun openRest() {

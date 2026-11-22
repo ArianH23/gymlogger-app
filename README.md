@@ -276,7 +276,7 @@ For the pairing function locally: `npx supabase functions serve --no-verify-jwt`
 
 **Run every test.** Database: `npx supabase test db` (523 checks). Phone: `cd web && npm test` (the run-file reader, the pace and climb figures, the photo sizes, the set rows, replacing exercises, the set input limits, the upload errors and the saved login),
 plus `npx tsc -b` and `npm run lint`. Importers: `cd importer && .venv/Scripts/python -m pytest` (34 tests). Watch:
-`cd watch && .\build.ps1 testDebugUnitTest` (29 tests). GitHub runs all of them on every push.
+`cd watch && .\build.ps1 testDebugUnitTest` (31 tests). GitHub runs all of them on every push.
 
 **Change the database.** Add a new file in `supabase/migrations/`, add a pgTAP test, run `npx supabase migration up`
 and `npx supabase test db`. Publishing is done from GitHub, not from this PC (next paragraph).

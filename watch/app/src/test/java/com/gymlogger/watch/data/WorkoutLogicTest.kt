@@ -18,6 +18,18 @@ class WorkoutLogicTest {
     private fun logged(ex: String, setNo: Int, reps: Int, side: String? = null) =
         LoggedSet("$ex-$setNo-$side", ex, setNo, side, 40.0, reps, "2026-01-01T10:0$setNo:00Z")
 
+    // ---- the rest chip
+
+    @Test fun aRestThatHasRunOutIsOver() {
+        assertEquals(true, restIsOver(1_000L, 1_000L))
+        assertEquals(true, restIsOver(1_000L, 5_000L))
+    }
+
+    @Test fun aRestStillRunningOrNoRestIsNotOver() {
+        assertEquals(false, restIsOver(5_000L, 1_000L))
+        assertEquals(false, restIsOver(null, 1_000L))
+    }
+
     // ---- "+ Set": a removed set comes back with its plan
 
     @Test fun plusSetAddsAnExtraSetWhenNothingWasRemoved() {

@@ -135,7 +135,8 @@ private fun pulse(): Float {
 
 /**
  * "Rest 1:12", counting down in the usual green. When it reaches zero (the watch vibrates then) it turns into a gold
- * pill that says "Rest over" and pulses, so it is hard to miss. Tap it for the rest timer's controls.
+ * pill that says "Rest over" and pulses, so it is hard to miss. While resting a tap opens the rest timer's controls; on the gold
+ * "Rest over" a tap just clears it (AppViewModel.restChipTapped), so the numbers under it show again.
  */
 @Composable
 fun RestChip(endsAt: Long?, onClick: () -> Unit) {

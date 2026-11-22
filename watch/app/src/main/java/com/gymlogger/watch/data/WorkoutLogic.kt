@@ -5,6 +5,9 @@ import kotlin.math.roundToInt
 
 // The rules of a workout screen, kept free of any UI. They mirror the phone app (ActiveWorkout.tsx) so both behave the same.
 
+/** True when a rest was running and its time has run out (the gold "Rest over" chip is showing). */
+fun restIsOver(endsAt: Long?, nowMs: Long): Boolean = endsAt != null && endsAt <= nowMs
+
 /** One line of an exercise: a set number, and a side for one-sided exercises. */
 data class Row(val setNo: Int, val side: String?)
 

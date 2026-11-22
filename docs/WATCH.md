@@ -40,7 +40,8 @@ It was built and tested for a Wear OS watch (Wi-Fi), Wear OS 6 and up (minSdk 33
    exercise screen brings the lowest removed row back with its plan before it adds a new extra set.
    Left/right exercises have an L and an R row.
 5. **Rest timer** after each completed set (for left/right: after both sides), by the top of the rep range (150 s up to 10,
-   90 s up to 15, else 60 s). Tap the rest line for the rest screen: **-15 / +15 / Skip / Alarm on-off**. The vibration is an
+   90 s up to 15, else 60 s). Tap the rest line for the rest screen: **-15 / +15 / Skip / Alarm on-off**. When the rest is over and the line has turned into the gold
+   **Rest over**, a tap just clears it, so the plan and last-time numbers it covered show again. The vibration is an
    Android alarm, so it goes off on time with the screen asleep. The alarm switch is per device.
 6. **Clock**: the time of day and the time since the workout started, at the top of every workout screen.
 7. **"Workout going on"** on the watch face (a Wear OS Ongoing Activity): a small dumbbell with a running timer; tapping it
