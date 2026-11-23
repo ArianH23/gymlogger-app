@@ -1,5 +1,8 @@
 # GymLogger
 
+**Built with Claude Code.** A personal workout logger: a phone web app (PWA) and a Wear OS watch app that share one
+Supabase database, with Claude planning each next session from your history. Released under the [MIT licence](LICENSE).
+
 A personal training app that replaces Hevy. You log sets on your phone or your watch; when you ask, Claude plans the
 session you are about to do from your history; the app shows that plan next to what you did last time and rates how each
 session went. It also keeps your runs, your body measurements and progress photos, which muscles you trained, and your heart
@@ -48,11 +51,11 @@ never clash. What you delete in the app (sessions, sets, routines, exercises, ch
 | `supabase/tests/` | pgTAP tests, 525 checks, run with `npx supabase test db` |
 | `supabase/functions/watch-pair/` | the Edge Function that trades a pairing code for a watch login |
 | `web/src/screens`, `components`, `lib` | the phone app. `lib/sync.ts` shares the workout, `lib/db.ts` is the on-phone database (Dexie), `lib/tcx.ts` reads a run file, `index.css` holds the design system |
-| `web/public/faces/` | the five tier faces shown for the session tiers (cut by `scripts/cut_faces.py`) |
+| `web/public/faces/` | the five tier faces shown for the session tiers (drawn by `scripts/make_art.py`) |
 | `.github/workflows/` | CI (`ci.yml`) and the "Update database" button (`update-database.yml`) |
 | `watch/` | the Wear OS app: `data/` (API, models, sync, storage), `ui/` (screens, colours), `AppViewModel.kt`, `RestAlarm.kt`, `OngoingWorkout.kt`, `HeartRate.kt` |
 | `importer/` | Hevy CSV importer (`hevy_import.py`), Strava runs importer (`strava_import.py`), exercise catalog (`exercises.csv`), pytest tests |
-| `scripts/` | `publish_guide.py` (Claude's instructions into the database), the three `draw_*.py` diagram scripts, `draw_shape_mockup.py`, `cut_faces.py`, `md_to_pdf.py`, `watch_pairing_check.py` and `watch_api_check.py` (play the watch over plain HTTP) |
+| `scripts/` | `publish_guide.py` (Claude's instructions into the database), the three `draw_*.py` diagram scripts, `draw_shape_mockup.py`, `make_art.py` (the icons and faces), `md_to_pdf.py`, `watch_pairing_check.py` and `watch_api_check.py` (play the watch over plain HTTP) |
 | `CLAUDE_GUIDE.md` | how Claude reads the database and writes a plan |
 | `docs/evidence.md` (+ `.pdf`) | short, verified research notes Claude cites (published as `evidence-notes`) |
 | `docs/prompts/` | the two short prompts: the scheduled task and the chat project |
@@ -305,8 +308,13 @@ then `python hevy_import.py --user-id <id>` is a dry run; add `--env-file .env.c
 is safe (deterministic ids) and never overwrites exercise settings you edited. The Strava runs are imported the same way
 with `strava_import.py` (see Runs above).
 
-**Change the faces.** Put the new expression sheet in `docs/` and run `python scripts/cut_faces.py "<sheet>.png"`
-(needs `pip install pillow numpy scipy`). The order on the sheet is great, good, average, weak, poor.
+**Change the faces or the icon.** Edit the drawing code in `scripts/make_art.py` and run `python scripts/make_art.py`
+(needs `pip install pillow`). It rewrites `web/public/faces/` (great, good, average, weak, poor), the app icons in
+`web/public/` and the watch launcher icons.
+
+**Artwork licence.** The app icon (a dumbbell) and the five tier faces are original work drawn from simple geometric shapes by
+`scripts/make_art.py`; they use no third-party images, fonts or icon sets. They are released under the same MIT licence as
+the code (see `LICENSE`). The Outfit font is not part of the repository: it comes from the npm package `@fontsource-variable/outfit` and keeps its own licence (SIL Open Font License).
 
 ## CI/CD (automatic checks and deploys)
 
