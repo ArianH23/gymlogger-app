@@ -50,7 +50,7 @@ box(30, 270, 270, 120, GREY, "You push to GitHub", ["git push origin main", "(th
 # ---- CI
 panel(330, 90, 420, 640, CI, "CI: checks on every push", "automatic, needs no secrets")
 checks = [
-    ("1  Database tests", ["240 checks, run on a", "temporary test database"]),
+    ("1  Database tests", ["525 checks, run on a", "temporary test database"]),
     ("2  Phone app", ["type-check, lint and build"]),
     ("3  Importer tests", ["the Hevy importer (Python)"]),
     ("4  Watch app compiles", ["build only: nothing is installed"]),
